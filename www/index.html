@@ -66,7 +66,7 @@
 <div id="pause" class="modal"><div class="panel">
   <h2>Pausa</h2>
   <div class="row"><button class="btn green" id="p_resume">Seguir</button><button class="btn orange" id="p_retry">Reintentar</button><button class="btn red" id="p_quit">Salir</button></div>
-  <div class="row"><button class="ibtn" id="p_mus"><img src="img/ui/i_music.webp"></button><button class="ibtn" id="p_snd"><img src="img/ui/i_snd.webp"></button></div>
+  <div class="row"><button class="ibtn" id="p_mus"><img src="img/ui/i_music.webp"></button><button class="ibtn" id="p_snd"><img src="img/ui/i_snd.webp"></button><button class="btn blue sm" id="p_next">⏭ Otra canción</button></div>
 </div></div>
 
 <div id="result" class="modal"><div class="panel">
@@ -109,7 +109,7 @@
 
 <div id="settings" class="screen dim">
   <div class="topbar"><button class="back" data-go="home" aria-label="Atrás"><span>❮</span></button><h2>Ajustes</h2></div>
-  <div class="panel wide setlist">
+  <div class="panel wide setlist"><div class="setcols"><div class="setcol">
     <label>Música <input type="range" id="s_mus" min="0" max="1" step="0.05"></label>
     <label>Efectos <input type="range" id="s_sfx" min="0" max="1" step="0.05"></label>
     <label>Estilo de música <select id="s_style"><option value="mezcla">Mezcla (cada mundo la suya)</option><option value="dnb">Drum &amp; bass con voces</option><option value="chip">8 bits clásico</option><option value="tranquila">Tranquila</option></select></label>
@@ -117,7 +117,8 @@
     <label>Nivel del cañón (pruebas) <select id="s_can"><option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option></select></label>
     <div class="row"><button class="btn blue" id="s_unlock">Desbloquear todo (pruebas)</button><button class="btn red" id="s_reset">Borrar partida</button></div>
     <div class="small">Música por código · Roll Siege v0.2</div>
-  </div>
+  </div><div class="setcol jbcol"><div class="jbt">Tocadiscos (toca para escuchar)</div><div id="s_jb" class="jb"></div>
+    </div></div></div>
 </div>
 
 <div id="dlg" class="modal"><div class="panel">

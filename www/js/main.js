@@ -140,6 +140,7 @@
         style: ctx.style, clan: S.clan, bg: bgKey, cannonLvl: S.cannon,
         onQueue: drawQueue, onTick: hudTick, onEnd: onEnd,
         onAbility: function () { $('hint').style.opacity = 0; },
+        onAim: function () { clearTimeout(armTip.t); $('armtip').classList.remove('show'); $('hint').style.opacity = 0; },
       });
       drawQueue();
       $('hint').style.opacity = S.seenHint < 3 ? 1 : 0;
@@ -201,6 +202,7 @@
   $('p_quit').onclick = function () { $('pause').classList.remove('show'); back(); };
   function syncAudioBtns() { $('p_mus').classList.toggle('off', S.vol.music === 0); $('p_snd').classList.toggle('off', S.vol.sfx === 0); }
   $('p_mus').onclick = function () { S.vol.music = S.vol.music ? 0 : 0.6; RS.Audio.setVol('music', S.vol.music); persist(); syncAudioBtns(); };
+  $('p_next').onclick = function () { RS.Audio.init(); nextTrack(); };
   $('p_snd').onclick = function () { S.vol.sfx = S.vol.sfx ? 0 : 0.8; RS.Audio.setVol('sfx', S.vol.sfx); persist(); syncAudioBtns(); };
   function retry() { var c = ctxGame; startGame(c.kind === 'camp' ? RS.makeLevel(c.w, c.n) : c.kind === 'league' ? rivalLevel() : ownLevel(), c); }
   function back() { var k = ctxGame && ctxGame.kind; show(k === 'camp' ? 'levels' : k === 'league' ? 'league' : 'build'); }
@@ -404,7 +406,15 @@
   };
 
   // ---------- ajustes ----------
+  // tocadiscos: escuchar y elegir cualquier canción
+  var TRACKS = [['RSM01', 'Tema principal'], ['RSM02', 'Taller'], ['RSM03', 'Bosque del Saqueo (DnB)'], ['RSM04', 'Dunas (8 bits)'], ['RSM05', 'Cumbres Heladas (DnB)'], ['RSM06', 'Volcán (DnB)'], ['RSM07', 'Puerto (8 bits)'], ['RSM08', 'Rapiñópolis (DnB)'], ['RSM09', 'Jefe (DnB)'], ['RSM10', 'Liga (DnB)'], ['RSM11', 'Sol Naciente'], ['RSM12', 'La Frontera'], ['RSM13', 'Sol de Jade'], ['RSM15', 'Cannon Rush (DnB)'], ['RSM16', 'Armadillo Roll (DnB)'], ['RSM17', 'Gem Hunter (DnB)'], ['RSM18', 'Powder Keg (DnB)'], ['RSM19', 'Rolling Thunder (DnB)'], ['RSM20', 'Bandit Breakbeat (DnB)']];
+  RS.TRACKS = TRACKS;
+  function playTrack(code) { var st = S.musicStyle; S.musicStyle = 'mezcla'; RS.Audio.play(code); S.musicStyle = st; }
+  function nextTrack() { var i = TRACKS.findIndex(function (t) { return t[0] === RS.Audio.cur; }); var t = TRACKS[(i + 1) % TRACKS.length]; playTrack(t[0]); toast('♪ ' + t[1]); }
+  RS.nextTrack = nextTrack;
   SCREENS.settings = function () {
+    var jb = $('s_jb'); jb.innerHTML = '';
+    TRACKS.forEach(function (t) { var b = document.createElement('button'); b.className = 'tb' + (RS.Audio.cur === t[0] ? ' sel' : ''); b.textContent = '▶ ' + t[1]; b.onclick = function () { RS.Audio.init(); playTrack(t[0]); SCREENS.settings(); }; jb.appendChild(b); });
     $('s_mus').value = S.vol.music; $('s_sfx').value = S.vol.sfx; $('s_style').value = S.musicStyle; $('s_can').value = S.cannon;
     var sc = $('s_clan'); sc.innerHTML = ''; Object.keys(RS.CLANS).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = RS.CLANS[k].short; sc.appendChild(o); }); sc.value = S.clan;
     $('s_unlock').textContent = S.unlockAll ? 'Bloquear de nuevo' : 'Desbloquear todo (pruebas)';

@@ -174,3 +174,12 @@ input, select { font-family: Nunito; font-weight: 800; font-size: calc(3 * var(-
 .armtip img { display: none; }
 .armtip::before { content: ''; position: absolute; top: -9px; left: calc(var(--ax, 50%) - 8px); border: 8px solid transparent; border-top: 0; border-bottom-color: #f0a020; }
 .q .nm, .q.sel .nm { display: none; }
+.jbt { font-family: Lilita, sans-serif; font-size: calc(3 * var(--vh)); margin-top: calc(1 * var(--vh)); }
+.jb { display: flex; flex-wrap: wrap; gap: calc(.6 * var(--vh)); max-height: calc(24 * var(--vh)); overflow-y: auto; touch-action: pan-y; }
+.jb .tb { height: auto; min-height: calc(5.5 * var(--vh)); padding: calc(.6 * var(--vh)) calc(1.2 * var(--vh)); }
+#settings .panel { max-height: calc(86 * var(--vh)); overflow-y: auto; touch-action: pan-y; }
+.setcols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: calc(3 * var(--vw)); width: 100%; }
+.setcol { display: flex; flex-direction: column; gap: calc(1.6 * var(--vh)); }
+.jbcol .jb { max-height: calc(52 * var(--vh)); }
+#settings .panel { max-height: none; overflow: visible; }
+#settings .row .btn { font-size: calc(3 * var(--vh)); height: calc(7.5 * var(--vh)); min-width: 0; }

@@ -151,7 +151,7 @@
     var x = (e.clientX - RS.stage.x) * this.dpr, y = (e.clientY - RS.stage.y) * this.dpr;
     if (this.state === 'aim' && this.intro > 0) { this.intro = 0; }
     if (this.state === 'aim' && x > this.W * 0.55 && this.camMaxX() > this.camHomeX() + 0.5) { this.pan = { x0: x, cx0: this.cam.x, d: 0 }; return; }
-    if (this.state === 'aim' && !this.queue[this.sel].used) { this.view = 0; this.aim = { sx: x, sy: y, cx: x, cy: y, full: 0 }; RS.Audio.sfx('click', 0.4); }
+    if (this.state === 'aim' && !this.queue[this.sel].used) { this.view = 0; this.aim = { sx: x, sy: y, cx: x, cy: y, full: 0 }; RS.Audio.sfx('click', 0.4); if (this.o.onAim) this.o.onAim(); }
     else if (this.state === 'flight') {
       var b = this.phys.activeBall();
       if (b && !b.used) { var k = this.phys.ability(b); if (k) this.abilityFx(k, b); }
