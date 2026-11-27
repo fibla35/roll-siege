@@ -64,7 +64,7 @@
     var box = $('clanlist'); box.innerHTML = '';
     Object.keys(RS.CLANS).forEach(function (k) {
       var c = RS.CLANS[k], b = document.createElement('button'); b.className = 'card' + (clanSel === k ? ' sel' : '');
-      b.innerHTML = '<img src="img/bg_' + k + '.webp"><b>' + c.short + '</b><span>' + c.desc + '</span>';
+      b.innerHTML = '<img src="img/bg_' + k + '.webp" alt=""><div class="ct"><b>' + c.short + '</b><span>' + c.desc + '</span></div>';
       b.onclick = function () { clanSel = k; RS.Audio.sfx('click'); RS.Audio.play(c.music); SCREENS.clan(); };
       box.appendChild(b);
     });

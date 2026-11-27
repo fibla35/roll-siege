@@ -118,3 +118,29 @@ input, select { font-family: Nunito; font-weight: 800; font-size: 3vh; padding: 
 .tb.cat.sel { background: #f0a020; }
 .tb canvas { height: 6vh; width: auto; }
 #dlg { z-index: 30; } #dlg h2 { font-size: 4.2vh; text-align: center; max-width: 60vw; }
+
+/* marcos de madera nítidos: 9 trozos (las esquinas no se deforman) */
+.panel { background: none; border: clamp(26px, 6vh, 46px) solid transparent; border-image: url(../img/ui/panel_hd.webp) 140 fill / clamp(26px, 6vh, 46px) stretch; padding: 2vh 3vh; }
+.card, .arm { background: none; border: clamp(20px, 4.6vh, 34px) solid transparent; border-image: url(../img/ui/panel_s_hd.webp) 125 fill / clamp(20px, 4.6vh, 34px) stretch; padding: 1.5vh 1.5vh 2vh; min-height: 0; }
+.card { justify-content: flex-start; }
+.homegrid .card { min-height: 40vh; justify-content: center; }
+.arm { min-height: 44vh; }
+#clanlist { width: 94vw; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2vw; }
+#clanlist .card { width: auto; min-height: 0; }
+#clanlist .card img { width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 1vh; display: block; }
+#clanlist .card span { font-size: clamp(12px, 2.4vh, 18px); }
+#clanlist .card b { font-size: clamp(20px, 4.4vh, 34px); line-height: 1.05; text-align: center; }
+.card b, .arm b { text-align: center; line-height: 1.05; }
+.card span, .arm .d { text-align: center; }
+@media (orientation: portrait) {
+  #clanlist { grid-template-columns: minmax(0, 1fr); max-width: 420px; }
+  #clanlist .card { flex-direction: row; gap: 12px; text-align: left; }
+  #clanlist .card img { width: 42%; }
+  #clanlist .card b, #clanlist .card span { text-align: left; }
+  .homegrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #armgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #levelgrid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .small { font-size: 15px; }
+}
+#clanlist .ct { display: flex; flex-direction: column; gap: .8vh; align-items: center; padding-top: 1vh; } @media (orientation: portrait) { #clanlist .ct { align-items: flex-start; } }
+@media (orientation: portrait) { #home { justify-content: flex-start; padding-top: 11vh; } #home .logo-s { height: 9vh; } }
