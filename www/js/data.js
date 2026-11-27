@@ -6,11 +6,30 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     { id: 'bloque', name: 'Bloque', w: 2, h: 1, kind: 'box', slice: true },
     { id: 'tablon', name: 'Tablón', w: 4, h: 0.5, kind: 'box', slice: true },
     { id: 'viga', name: 'Viga', w: 6, h: 0.5, kind: 'box', slice: true },
-    { id: 'tri', name: 'Triángulo', w: 1, h: 1, kind: 'poly', pts: [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5]] },
-    { id: 'tejado', name: 'Tejado', w: 2, h: 1, kind: 'poly', pts: [[-1, -0.5], [1, -0.5], [0, 0.5]] },
+    { id: 'tri', name: 'Triángulo', noTop: true, w: 1, h: 1, kind: 'poly', pts: [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5]] },
+    { id: 'tejado', name: 'Tejado', noTop: true, w: 2, h: 1, kind: 'poly', pts: [[-1, -0.5], [1, -0.5], [0, 0.5]] },
     { id: 'arco', name: 'Arco', w: 2, h: 1, kind: 'arch' },
-    { id: 'rueda', name: 'Rueda', w: 1, h: 1, kind: 'circle', r: 0.5 },
+    { id: 'rueda', name: 'Rueda', noTop: true, w: 1, h: 1, kind: 'circle', r: 0.5 },
+    // --- refuerzos (material fijo, sprite propio de la hoja traps) ---
+    { id: 'escuadra', name: 'Escuadra', w: 1, h: 1, kind: 'L', cat: 'ref', mat: 3, sprite: ['traps', 17], weld: true, cost: 2, desc: 'Ángulo de hierro: se suelda a lo que toca y une esquinas.' },
+    { id: 'puntal', name: 'Puntal de madera', w: 2, h: 2, kind: 'brace', cat: 'ref', mat: 0, sprite: ['traps', 18], weld: true, cost: 2, desc: 'Diagonal que apuntala paredes y pisos. Gira para la otra diagonal.' },
+    { id: 'puntalh', name: 'Puntal de hierro', w: 2, h: 2, kind: 'brace', cat: 'ref', mat: 3, sprite: ['traps', 19], weld: true, cost: 4, desc: 'Diagonal de hierro, mucho más resistente.' },
+    { id: 'contrafuerte', name: 'Contrafuerte', noTop: true, w: 2, h: 2, kind: 'poly', pts: [[-1, -1], [1, -1], [1, 1]], cat: 'ref', mat: 1, sprite: ['traps', 21], cost: 4, desc: 'Rampa de piedra que sujeta un muro por fuera y desvía bolas.' },
+    { id: 'cimiento', name: 'Cimiento', w: 2, h: 1, kind: 'box', cat: 'ref', mat: 5, sprite: ['traps', 15], static: true, weld: true, ground: true, cost: 5, desc: 'Anclado al suelo: no se mueve nunca. Solo en el suelo.' },
+    { id: 'estaca', name: 'Estaca', w: 0.5, h: 1, kind: 'box', cat: 'ref', mat: 3, sprite: ['traps', 23], static: true, weld: true, ground: true, cost: 2, desc: 'Clava la pieza que tenga encima al suelo. Solo en el suelo.' },
+    { id: 'contrapeso', name: 'Contrapeso', w: 1, h: 1, kind: 'box', cat: 'ref', mat: 3, sprite: ['traps', 22], dens: 3.5, cost: 3, desc: 'Muy pesado: equilibra voladizos y aplasta lo que cae.' },
+    { id: 'placa', name: 'Placa de hierro', w: 1, h: 0.5, kind: 'box', cat: 'ref', mat: 3, sprite: ['traps', 16], weld: true, cost: 2, desc: 'Placa remachada que se suelda: une dos piezas por encima.' },
+    // --- trampas de defensa ---
+    { id: 'muelle', name: 'Muelle', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'spring', mat: 3, sprite: ['traps', 0], anim: [0, 1, 2], cost: 5, desc: 'Devuelve al armadillo por donde vino.' },
+    { id: 'ventilador', name: 'Ventilador', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'fan', mat: 3, sprite: ['traps', 3], anim: [3, 4, 5], cost: 6, desc: 'Sopla hacia el cañón y frena a los armadillos que se acercan.' },
+    { id: 'torreta', name: 'Torreta', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'turret', mat: 3, sprite: ['traps', 9], anim: [9, 10, 11], cost: 8, desc: 'Dispara a los armadillos en vuelo (3 disparos).' },
+    { id: 'escudo', name: 'Escudo burbuja', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'shield', mat: 4, sprite: ['traps', 12], cost: 7, desc: 'Burbuja que frena en seco al primer armadillo que entra.' },
+    { id: 'gemafalsa', name: 'Gema trampa', w: 1, h: 1, kind: 'circle', r: 0.42, cat: 'trap', trap: 'decoy', mat: 4, sprite: ['traps', 14], cost: 5, desc: 'Parece una gema… y explota lanzando lejos al armadillo.' },
+    // --- explosivos (solo en la campaña, ayudan al atacante) ---
+    { id: 'barril', name: 'Barril explosivo', w: 1, h: 1, kind: 'box', cat: 'boom', mat: 0, sprite: ['items', 0], explosive: 1, cost: 2 },
+    { id: 'tnt', name: 'Caja de TNT', w: 1, h: 1, kind: 'box', cat: 'boom', mat: 0, sprite: ['items', 1], explosive: 1.5, cost: 3 },
   ];
+  RS.MAX_TRAPS = 5;
   RS.SHAPE_IDX = {}; RS.SHAPES.forEach(function (s, i) { RS.SHAPE_IDX[s.id] = i; });
 
   // hp: vida · dens: densidad · cost: puntos de construcción · luz/voladizo: reglas del constructor

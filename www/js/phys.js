@@ -13,6 +13,10 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     if (s.kind === 'box') body.createFixture(pl.Box(s.w / 2, s.h / 2), fd);
     else if (s.kind === 'circle') body.createFixture(pl.Circle(s.r), fd);
     else if (s.kind === 'poly') body.createFixture(pl.Polygon(s.pts.map(function (q) { return V(flip ? -q[0] : q[0], q[1]); })), fd);
+    else if (s.kind === 'L') {
+      body.createFixture(pl.Box(0.16, 0.5, V(flip ? 0.34 : -0.34, 0), 0), fd);
+      body.createFixture(pl.Box(0.5, 0.16, V(0, -0.34), 0), fd);
+    } else if (s.kind === 'brace') body.createFixture(pl.Box(1.32, 0.14, V(0, 0), flip ? -Math.PI / 4 : Math.PI / 4), fd);
     else if (s.kind === 'arch') {
       body.createFixture(pl.Box(0.225, 0.3, V(-0.775, -0.2), 0), fd);
       body.createFixture(pl.Box(0.225, 0.3, V(0.775, -0.2), 0), fd);
@@ -24,7 +28,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     opts = opts || {};
     var self = this;
     this.world = new pl.World({ gravity: V(0, RS.PHYS.gravity) });
-    this.blocks = []; this.gems = []; this.balls = []; this.events = []; this.dead = []; this.joints = [];
+    this.blocks = []; this.gems = []; this.balls = []; this.events = []; this.dead = []; this.joints = []; this.traps = []; this.shells = []; this.booms = [];
     this.time = 0; this.score = 0; this.destroyed = 0; this.totalValue = 0; this.destroyedValue = 0;
     this.noDamage = !!opts.noDamage;
     var ground = this.world.createBody({ type: 'static' });
@@ -39,11 +43,14 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
   }
   RS.Phys = Phys;
 
+  RS.pieceMat = function (p) { var s = RS.SHAPES[p.s]; return s.mat != null ? s.mat : p.m; };
   Phys.prototype.addPiece = function (p, i) {
-    var s = RS.SHAPES[p.s], m = RS.MATS[p.m];
-    var b = this.world.createBody({ type: 'dynamic', position: V(p.x, p.y), angle: (p.rot || 0) * Math.PI / 2 });
-    addShapeFixtures(b, s, p.flip, { density: m.dens, friction: m.fr, restitution: m.rest });
-    var ud = { block: true, p: p, idx: i, s: p.s, m: p.m, hp: m.hp, hp0: m.hp, fragile: m.fragile || 1, frozen: false, body: b };
+    var s = RS.SHAPES[p.s], mi = RS.pieceMat(p), m = RS.MATS[mi];
+    var b = this.world.createBody({ type: s.static ? 'static' : 'dynamic', position: V(p.x, p.y), angle: (p.rot || 0) * Math.PI / 2 });
+    addShapeFixtures(b, s, p.flip, { density: m.dens * (s.dens || 1), friction: m.fr, restitution: m.rest });
+    var hp = m.hp * (s.static ? 1.6 : 1) * (s.explosive ? 0.25 : 1);
+    var ud = { block: true, p: p, idx: i, s: p.s, m: mi, hp: hp, hp0: hp, fragile: m.fragile || 1, frozen: false, body: b, trap: s.trap || null, cd: 0, shots: 0, fr: 0, explosive: s.explosive || 0 };
+    if (s.trap) this.traps.push(ud);
     b.setUserData(ud); this.blocks.push(ud); this.totalValue += 100 * m.cost;
     return ud;
   };
@@ -59,7 +66,8 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     var self = this;
     for (var i = 0; i < this.blocks.length; i++) for (var j = i + 1; j < this.blocks.length; j++) {
       var A = this.blocks[i], B = this.blocks[j];
-      if (!A.p.weld && !B.p.weld) continue;
+      if (!A.p.weld && !B.p.weld && !RS.SHAPES[A.s].weld && !RS.SHAPES[B.s].weld) continue;
+      if (A.body.isStatic() && B.body.isStatic()) continue;
       var a = RS.pieceAABB(A.p), b = RS.pieceAABB(B.p), e = 0.06;
       var ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), oy = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0);
       if (ox > -e && oy > -e && (ox > 0.2 || oy > 0.2)) {
@@ -82,6 +90,11 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     var a = A.getUserData(), b = Bd.getUserData();
     var ball = a && a.ball ? a : (b && b.ball ? b : null), other = ball === a ? b : a;
     if (!ball || !other || !other.block) return;
+    if (other.trap === 'spring' && !other.dead && other.cd <= 0 && ball.ghostT <= 0) {
+      var bv = ball.body.getLinearVelocity();
+      other.cd = 0.6; other.fr = 0.5; ball.springV = V(-Math.max(6, Math.abs(bv.x) * 0.85), Math.max(7, Math.abs(bv.y) * 0.5 + 6));
+      this.events.push({ t: 'spring', x: other.body.getPosition().x, y: other.body.getPosition().y });
+    }
     if (ball.ghostT > 0) { c.setEnabled(false); return; }
     if (ball.drillT > 0 && [0, 1, 2, 4].indexOf(other.m) >= 0) {
       c.setEnabled(false);
@@ -101,6 +114,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
       if (!me) return;
       if (me.gem && !me.freed && n > 2.2) self.freeGem(me);
       if (!me.block) return;
+      if (other && other.shell) return;
       var mult = (other && other.ball) ? other.mult : 1;
       var dmg = (n - 0.9) * 6 * mult * me.fragile;
       if (dmg > 2) self.damage(me, dmg, pt);
@@ -117,6 +131,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
       var v = 100 * RS.MATS[u.m].cost; this.score += v; this.destroyedValue += v; this.destroyed++;
       var pos = u.body.getPosition();
       this.events.push({ t: 'break', m: u.m, s: u.s, x: pos.x, y: pos.y, a: u.body.getAngle(), u: u });
+      if (u.explosive) this.booms.push({ x: pos.x, y: pos.y, k: u.explosive });
     }
   };
 
@@ -219,8 +234,12 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
       var pos = b.getPosition();
       if (pos.y < -8 || pos.x > 140 || pos.x < -40) { u.dead = true; self.dead.push(b); }
     });
+    this.stepTraps(dt);
     this.world.step(dt, 8, 3);
     this.time += dt;
+    while (this.booms.length) { var bm = this.booms.shift(); this.explode(bm.x, bm.y, 2.6 + bm.k, 140 * bm.k, 22 * bm.k); }
+    this.balls.forEach(function (u) { if (u.springV) { u.body.setLinearVelocity(u.springV); u.springV = null; u.mult = 1; } });
+    this.shells = this.shells.filter(function (sh) { sh.t += dt; if (sh.t > 2.5 || sh.body.getPosition().y < -2) { self.dead.push(sh.body); return false; } return true; });
     // romper soldaduras sobrecargadas
     this.joints = this.joints.filter(function (J) {
       if (!J.j) return false;
@@ -239,6 +258,37 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     this.dead.forEach(function (b) { if (!seen.has(b)) { seen.add(b); self.world.destroyBody(b); } });
     this.dead = [];
     this.balls = this.balls.filter(function (u) { return !u.dead; });
+  };
+
+  // trampas: muelle (en pre-solve), ventilador, torreta, escudo y gema trampa
+  Phys.prototype.stepTraps = function (dt) {
+    var self = this, balls = this.balls.filter(function (u) { return !u.dead; });
+    this.traps.forEach(function (t) {
+      if (t.dead) return; t.cd -= dt; t.fr = Math.max(0, t.fr - dt);
+      var tp = t.body.getPosition(), dir = t.p.flip ? 1 : -1;
+      balls.forEach(function (u) {
+        var b = u.body, q = b.getPosition(), dx = q.x - tp.x, dy = q.y - tp.y, d = Math.hypot(dx, dy);
+        if (t.trap === 'fan') {
+          var ahead = dx * dir;
+          if (ahead > 0 && ahead < 7 && Math.abs(dy) < 1.8) { var k = 1 - ahead / 7; b.applyForceToCenter(V(dir * 45 * b.getMass() * k, 4 * b.getMass() * k), true); t.fr = 0.3; if (Math.random() < 0.3) self.events.push({ t: 'wind', x: tp.x + dir * (0.8 + Math.random() * ahead), y: tp.y + (Math.random() - 0.5), dir: dir }); }
+        } else if (t.trap === 'turret' && t.shots < 3 && t.cd <= 0 && d < 10 && d > 1.2 && !u.child) {
+          var sp = 19, tt = d / sp, vx = b.getLinearVelocity();
+          var ax = q.x + vx.x * tt * 0.7 - tp.x, ay = q.y + vx.y * tt * 0.7 - 0.5 * RS.PHYS.gravity * tt * tt * 0.6 - (tp.y + 0.2), n = Math.hypot(ax, ay) || 1;
+          var sb = self.world.createBody({ type: 'dynamic', position: V(tp.x + ax / n * 0.7, tp.y + 0.2 + ay / n * 0.7), bullet: true });
+          sb.createFixture(pl.Circle(0.2), { density: 6, restitution: 0.2 });
+          sb.setLinearVelocity(V(ax / n * sp, ay / n * sp)); sb.setUserData({ shell: true });
+          self.shells.push({ body: sb, t: 0 }); t.shots++; t.cd = 1.1; t.fr = 0.4;
+          self.events.push({ t: 'turret', x: tp.x + ax / n * 0.8, y: tp.y + 0.2 + ay / n * 0.8, a: Math.atan2(ay, ax) });
+        } else if (t.trap === 'shield' && !t.popped && d < 2.3) {
+          t.popped = true; var v = b.getLinearVelocity(); b.setLinearVelocity(V(v.x * 0.2, v.y * 0.2)); u.mult = 0.6;
+          self.events.push({ t: 'shield', x: tp.x, y: tp.y });
+        } else if (t.trap === 'decoy' && d < 1.25) {
+          t.dead = true; self.dead.push(t.body);
+          balls.forEach(function (o) { var r = o.body.getPosition(), ex = r.x - tp.x, ey = r.y - tp.y, e = Math.hypot(ex, ey) || 1; if (e < 4) o.body.setLinearVelocity(V(-Math.abs(ex / e) * 14 - 4, Math.abs(ey / e) * 6 + 7)); o.mult = 0.5; });
+          self.events.push({ t: 'explode', x: tp.x, y: tp.y });
+        }
+      });
+    });
   };
 
   Phys.prototype.activeBall = function () { return this.balls.filter(function (u) { return !u.child; })[0] || this.balls[0]; };

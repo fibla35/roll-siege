@@ -16,21 +16,40 @@
     var half = m % 2, row = (s < 4 ? 0 : 1) + (broken ? 2 : 0), col = (s % 4) + half * 4;
     return { sheet: 'blk_' + style + Math.floor(m / 2), idx: row * 8 + col };
   };
-  // pieza alargada: extremos sin deformar y tramo central estirado
-  RS.drawBlock = function (ctx, style, p, broken, x, y, ang, sc, alpha, tint) {
-    var s = RS.SHAPES[p.s], sp = RS.blockSprite(style, p.m, p.s, broken);
+  // pieza alargada: extremos sin deformar y tramo central estirado; piezas especiales con su sprite
+  var tmp = null;
+  RS.drawBlock = function (ctx, style, p, broken, x, y, ang, sc, alpha, tint, fr) {
+    var s = RS.SHAPES[p.s];
+    if (s.sprite) {
+      var sh = s.sprite[0], idx = fr != null ? fr : s.sprite[1], a = RS.spAspect(sh, idx);
+      var bw = s.w * sc, bh = s.h * sc, w = bw, h = w / a;
+      if (h > bh) { h = bh; w = h * a; }
+      if (s.kind === 'brace' || s.kind === 'poly') { w = bw; h = bh; }
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang); if (p.flip) ctx.scale(-1, 1);
+      if (alpha != null) ctx.globalAlpha = alpha;
+      if (broken) ctx.filter = 'brightness(0.75) saturate(0.7)';
+      RS.drawSp(ctx, sh, idx, 0, bh / 2 - h / 2, w, h);
+      ctx.restore();
+      return;
+    }
+    var sp = RS.blockSprite(style, p.m, p.s, broken);
     var im = RS.img[sp.sheet], r = RS.atlas[sp.sheet] && RS.atlas[sp.sheet][sp.idx];
     if (!im || !r) return;
-    var w = s.w * sc, h = s.h * sc;
-    ctx.save(); ctx.translate(x, y); ctx.rotate(ang); if (p.flip) ctx.scale(-1, 1);
-    if (alpha != null) ctx.globalAlpha = alpha;
+    var w2 = s.w * sc, h2 = s.h * sc, c = ctx, ox = 0, oy = 0;
+    if (tint) { // se pinta en un lienzo aparte para que el color no manche el fondo
+      tmp = tmp || document.createElement('canvas');
+      tmp.width = Math.ceil(w2) + 2; tmp.height = Math.ceil(h2) + 2; c = tmp.getContext('2d'); ox = tmp.width / 2; oy = tmp.height / 2;
+    } else { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); if (p.flip) ctx.scale(-1, 1); if (alpha != null) ctx.globalAlpha = alpha; }
+    c.save(); c.translate(ox, oy);
     if (s.slice) {
-      var cap = Math.min(r[3] * 0.9, r[2] * 0.3), dc = h * cap / r[3];
-      ctx.drawImage(im, r[0], r[1], cap, r[3], -w / 2, -h / 2, dc, h);
-      ctx.drawImage(im, r[0] + cap, r[1], r[2] - 2 * cap, r[3], -w / 2 + dc - 0.5, -h / 2, w - 2 * dc + 1, h);
-      ctx.drawImage(im, r[0] + r[2] - cap, r[1], cap, r[3], w / 2 - dc, -h / 2, dc, h);
-    } else ctx.drawImage(im, r[0], r[1], r[2], r[3], -w / 2, -h / 2, w, h);
-    if (tint) { ctx.globalCompositeOperation = 'source-atop'; ctx.fillStyle = tint; ctx.fillRect(-w / 2, -h / 2, w, h); }
+      var cap = Math.min(r[3] * 0.9, r[2] * 0.3), dc = h2 * cap / r[3];
+      c.drawImage(im, r[0], r[1], cap, r[3], -w2 / 2, -h2 / 2, dc, h2);
+      c.drawImage(im, r[0] + cap, r[1], r[2] - 2 * cap, r[3], -w2 / 2 + dc - 0.5, -h2 / 2, w2 - 2 * dc + 1, h2);
+      c.drawImage(im, r[0] + r[2] - cap, r[1], cap, r[3], w2 / 2 - dc, -h2 / 2, dc, h2);
+    } else c.drawImage(im, r[0], r[1], r[2], r[3], -w2 / 2, -h2 / 2, w2, h2);
+    if (tint) { c.globalCompositeOperation = 'source-atop'; c.fillStyle = tint; c.fillRect(-w2 / 2 - 1, -h2 / 2 - 1, w2 + 2, h2 + 2); }
+    c.restore();
+    if (tint) { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); if (p.flip) ctx.scale(-1, 1); if (alpha != null) ctx.globalAlpha = alpha; ctx.drawImage(tmp, -tmp.width / 2, -tmp.height / 2); }
     ctx.restore();
   };
 
@@ -236,6 +255,10 @@
         self.parts.push({ fx: 'fx', fr: [8, 9, 10, 11], x: e.x, y: e.y, w: 2, life: 0.4, t: 0 });
         self.pops.push({ x: e.x, y: e.y + 0.8, t: 0, txt: '+1000', gold: true });
         if (self.o.onQueue) self.o.onQueue();
+      } else if (e.t === 'spring') { RS.Audio.sfx('bounce', 0.8); self.pops.push({ x: e.x, y: e.y + 1, t: 0, txt: '¡BOING!' });
+      } else if (e.t === 'wind') { self.parts.push({ fx: 'fx', fr: [4, 5, 6, 7], x: e.x, y: e.y, w: 0.6, vx: e.dir * 9, vy: 0, life: 0.5, t: 0, fade: true });
+      } else if (e.t === 'turret') { RS.Audio.sfx('cannon', 0.5); self.parts.push({ fx: 'pow', fr: [6, 7, 8, 9, 10, 11], x: e.x, y: e.y, w: 1.2, life: 0.3, t: 0, ang: -e.a });
+      } else if (e.t === 'shield') { RS.Audio.sfx('glass_break', 0.8); self.parts.push({ fx: 'fx', fr: [12, 13, 14, 15], x: e.x, y: e.y, w: 4.6, life: 0.5, t: 0, fade: true }); self.pops.push({ x: e.x, y: e.y + 1.5, t: 0, txt: '¡Escudo!' });
       } else if (e.t === 'explode') {
         self.parts.push({ fx: 'fx', fr: [0, 1, 2, 3], x: e.x, y: e.y, w: 5.5, life: 0.6, t: 0 }); self.shake = 14 * self.dpr;
       } else if (e.t === 'weldbreak') RS.Audio.sfx('metal_hit', 0.4);
@@ -279,7 +302,9 @@
     // bloques
     this.phys.blocks.forEach(function (u) {
       if (u.dead) return; var b = u.body, p = b.getPosition();
-      RS.drawBlock(ctx, self.style, u.p, u.hp < u.hp0 * 0.5, self.sx(p.x), self.sy(p.y), -b.getAngle(), s, null, u.frozen ? 'rgba(120,200,255,0.35)' : (u.p.tint || null));
+      var an = RS.SHAPES[u.s].anim, fr = an ? an[u.trap === 'fan' ? (u.fr > 0 ? 1 + Math.floor(self.t * 14) % 2 : 0) : u.fr > 0.25 ? 1 : u.fr > 0 ? 2 : 0] : null;
+      RS.drawBlock(ctx, self.style, u.p, u.hp < u.hp0 * 0.5, self.sx(p.x), self.sy(p.y), -b.getAngle(), s, null, u.frozen ? 'rgba(120,200,255,0.35)' : (u.p.tint || null), fr);
+      if (u.trap === 'shield' && !u.popped) { ctx.save(); ctx.globalAlpha = 0.22 + 0.06 * Math.sin(self.t * 3); ctx.fillStyle = '#7fe8ff'; ctx.strokeStyle = '#bff6ff'; ctx.lineWidth = 3 * self.dpr; ctx.beginPath(); ctx.arc(self.sx(p.x), self.sy(p.y), 2.3 * s, 0, TAU); ctx.fill(); ctx.globalAlpha = 0.6; ctx.stroke(); ctx.restore(); }
     });
     // gemas
     this.phys.gems.forEach(function (g) {
@@ -298,6 +323,8 @@
       if (u.magT > 0) { ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 3 * self.dpr; for (var k = 1; k <= 3; k++) { ctx.beginPath(); ctx.arc(self.sx(p.x), self.sy(p.y), r * (0.6 + k * 0.5 + (self.t * 2 % 0.5)), 0, TAU); ctx.stroke(); } ctx.restore(); }
       RS.drawSp(ctx, 'arm_master', 12 + u.arm, self.sx(p.x), self.sy(p.y), r, r, -u.body.getAngle(), false, u.ghostT > 0 ? 0.45 : 1);
     });
+    // balas de torreta
+    this.phys.shells.forEach(function (sh) { var q = sh.body.getPosition(); ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(self.sx(q.x), self.sy(q.y), 0.22 * s, 0, TAU); ctx.fill(); });
     // partículas
     this.parts.forEach(function (p) {
       var f = p.fr[Math.min(p.fr.length - 1, Math.floor(p.t / p.life * p.fr.length))];

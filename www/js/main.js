@@ -226,47 +226,80 @@
     var L = S.layout || { pieces: [], gems: [] };
     var pieces = L.pieces.map(function (p) { var q = Object.assign({}, p); q.x += OFF; return q; });
     var gems = L.gems.map(function (g) { return { x: g.x + OFF, y: g.y, c: g.c }; });
-    var three = Math.round(22 * 120 + gems.length * 1000);
-    return { pieces: pieces, gems: gems, arms: [0, 1, 3, 2, 4], end: OFF + 22, stars: [1, three * 0.55, three * 0.85], deco: (L.deco || []).map(function (d) { return Object.assign({}, d, { x: d.x + OFF }); }), sign: L.sign ? Object.assign({}, L.sign, { x: L.sign.x + OFF, name: S.name }) : null };
+    var xs = pieces.map(function (p) { return RS.pieceAABB(p).x1; }), endX = xs.length ? Math.max.apply(null, xs) : OFF + 10;
+    var three = Math.round((endX - OFF) * 120 + gems.length * 1000);
+    return { pieces: pieces, gems: gems, arms: [0, 1, 3, 2, 4], end: endX, stars: [1, three * 0.55, three * 0.85], deco: (L.deco || []).map(function (d) { return Object.assign({}, d, { x: d.x + OFF }); }), sign: L.sign ? Object.assign({}, L.sign, { x: L.sign.x + OFF, name: S.name }) : null };
   }
-  var TOOLS = [['place', '🧱 Poner'], ['erase', '🗑 Quitar'], ['weld', '🔩 Soldar'], ['swap', '♻ Material'], ['paint', '🎨 Pintar'], ['gem', '💎 Gema'], ['deco', '🏮 Adorno'], ['sign', '🪧 Cartel']];
-  function shapeIcon(si, mi) {
-    var c = document.createElement('canvas'); c.width = 90; c.height = 60; var x = c.getContext('2d'), sh = RS.SHAPES[si];
-    var s = Math.min(80 / sh.w, 50 / sh.h); RS.drawBlock(x, S.clan, { s: si, m: mi, rot: 0 }, false, 45, 30, 0, s);
+  var TOOLS = [['place', '🧱 Poner'], ['tpl', '🏠 Plantillas'], ['move', '✋ Mover'], ['pick', '📋 Copiar'], ['erase', '🗑 Quitar'], ['weld', '🔩 Soldar'], ['swap', '♻ Material'], ['paint', '🎨 Pintar'], ['gem', '💎 Gema'], ['deco', '🏮 Adorno'], ['sign', '🪧 Cartel']];
+  var CATS = [['est', 'Estructura'], ['ref', 'Refuerzos'], ['trap', 'Trampas']];
+  function pieceIcon(p, bw, bh) {
+    var c = document.createElement('canvas'); c.width = bw; c.height = bh; var x = c.getContext('2d'), sh = RS.SHAPES[p.s];
+    var z = RS.pieceSize(p), s = Math.min((bw - 8) / z.w, (bh - 6) / z.h); RS.drawBlock(x, S.clan, p, false, bw / 2, bh / 2, -(p.rot || 0) * Math.PI / 2, s);
     return c;
   }
+  function tplIcon(T, mat) {
+    var c = document.createElement('canvas'); c.width = 90; c.height = 60; var x = c.getContext('2d'), s = Math.min(84 / T.w, 54 / T.h);
+    T.ps.forEach(function (d) { var si = RS.SHAPE_IDX[d[0]], sh = RS.SHAPES[si], p = { s: si, m: sh.mat != null ? sh.mat : (d[1] != null ? d[1] : mat), rot: d[4] || 0, flip: !!d[5] };
+      RS.drawBlock(x, S.clan, p, false, 45 - T.w * s / 2 + d[2] * s, 57 - d[3] * s, -(p.rot) * Math.PI / 2, s); });
+    return c;
+  }
+  function tb(txt, sel, fn, cls) { var b = document.createElement('button'); b.className = 'tb' + (sel ? ' sel' : '') + (cls ? ' ' + cls : ''); if (typeof txt === 'string') b.textContent = txt; else b.appendChild(txt); b.onclick = function (e) { e.stopPropagation(); RS.Audio.sfx('click', 0.35); fn(); }; return b; }
+  function sep() { return Object.assign(document.createElement('div'), { className: 'sep' }); }
+  function matButtons(pal, B) {
+    RS.MATS.forEach(function (m, i) {
+      var open = matOpen(i);
+      pal.appendChild(tb(m.name + ' · ' + m.cost, B.mat === i, function () { if (!open) return toast('Se desbloquea en el mundo ' + m.lvl); B.mat = i; buildUI(); }, open ? '' : 'lock'));
+    });
+  }
   function buildUI() {
-    var B = builder, tb = $('b_tools'), pal = $('b_pal'); tb.innerHTML = ''; pal.innerHTML = '';
-    TOOLS.forEach(function (t) { var b = document.createElement('button'); b.className = 'tb' + (B.tool === t[0] ? ' sel' : ''); b.textContent = t[1]; b.onclick = function () { B.tool = t[0]; RS.Audio.sfx('click', 0.4); buildUI(); }; tb.appendChild(b); });
-    tb.appendChild(Object.assign(document.createElement('div'), { className: 'sep' }));
-    var rot = document.createElement('button'); rot.className = 'tb'; rot.textContent = '⟳ Girar'; rot.onclick = function () { B.rot = (B.rot + 1) % 2; RS.Audio.sfx('click', 0.4); }; tb.appendChild(rot);
-    var nm = document.createElement('button'); nm.className = 'tb'; nm.textContent = '✏ Nombre'; nm.onclick = function () { var v = prompt('Nombre de tu fortaleza', S.name); if (v) { S.name = v.slice(0, 20); persist(); if (B.L.sign) B.L.sign.name = S.name; } }; tb.appendChild(nm);
-    var clr = document.createElement('button'); clr.className = 'tb'; clr.textContent = '✖ Vaciar'; clr.onclick = function () { if (confirm('¿Borrar toda la fortaleza?')) { B.L.pieces = []; B.L.gems = []; B.L.deco = []; B.L.sign = null; B.changed(); updB(); } }; tb.appendChild(clr);
-    if (B.tool === 'place' || B.tool === 'swap') {
-      if (B.tool === 'place') RS.SHAPES.forEach(function (sh, i) { var b = document.createElement('button'); b.className = 'tb' + (B.shape === i ? ' sel' : ''); b.appendChild(shapeIcon(i, B.mat)); b.title = sh.name; b.onclick = function () { B.shape = i; buildUI(); }; pal.appendChild(b); });
-      if (B.tool === 'place') pal.appendChild(Object.assign(document.createElement('div'), { className: 'sep' }));
-      RS.MATS.forEach(function (m, i) {
-        var open = matOpen(i), b = document.createElement('button'); b.className = 'tb' + (B.mat === i ? ' sel' : '') + (open ? '' : ' lock');
-        b.textContent = m.name + ' · ' + m.cost; b.onclick = function () { if (!open) return toast('Se desbloquea en el mundo ' + m.lvl); B.mat = i; buildUI(); }; pal.appendChild(b);
+    var B = builder; if (!B) return;
+    var tl = $('b_tools'), pal = $('b_pal'); tl.innerHTML = ''; pal.innerHTML = '';
+    TOOLS.forEach(function (t) { tl.appendChild(tb(t[1], B.tool === t[0], function () { B.setTool(t[0]); buildUI(); })); });
+    tl.appendChild(sep());
+    tl.appendChild(tb('↶ Deshacer', false, function () { B.undo(); updB(); }));
+    tl.appendChild(tb('⟳ Girar', false, function () { B.rot = (B.rot + 1) % 2; if (B.carry) B.carry.rot = ((B.carry.rot || 0) + 1) % 2; buildUI(); }));
+    tl.appendChild(tb('⇋ Voltear', B.flip, function () { B.flip = !B.flip; if (B.carry) B.carry.flip = !B.carry.flip; buildUI(); }));
+    tl.appendChild(tb('🔍−', false, function () { B.zoom(1 / 1.3); }));
+    tl.appendChild(tb('🔍+', false, function () { B.zoom(1.3); }));
+    tl.appendChild(tb('👁 Vista', B.tool === 'pan', function () { B.setTool('pan'); buildUI(); }));
+    tl.appendChild(tb('✏ Nombre', false, function () { var v = prompt('Nombre de tu fortaleza', S.name); if (v) { S.name = v.slice(0, 20); persist(); if (B.L.sign) B.L.sign.name = S.name; } }));
+    tl.appendChild(tb('✖ Vaciar', false, function () { if (confirm('¿Borrar toda la fortaleza?')) { B.snap(); B.L.pieces = []; B.L.gems = []; B.L.deco = []; B.L.sign = null; B.changed(); } }));
+    var info = '';
+    if (B.tool === 'place') {
+      CATS.forEach(function (c) { pal.appendChild(tb(c[1], B.cat === c[0], function () { B.cat = c[0]; var first = RS.SHAPES.findIndex(function (sh) { return (sh.cat || 'est') === c[0]; }); if ((RS.SHAPES[B.shape].cat || 'est') !== c[0]) B.shape = first; buildUI(); }, 'cat')); });
+      pal.appendChild(sep());
+      RS.SHAPES.forEach(function (sh, i) {
+        if ((sh.cat || 'est') !== B.cat) return;
+        var p = { s: i, m: sh.mat != null ? sh.mat : B.mat, rot: sh.sprite || sh.kind === 'circle' ? 0 : B.rot, flip: B.flip };
+        var b = tb(pieceIcon(p, 84, 56), B.shape === i, function () { B.shape = i; buildUI(); });
+        b.title = sh.name; pal.appendChild(b);
       });
-    } else if (B.tool === 'paint') {
-      RS.PAINTS.forEach(function (p, i) { var b = document.createElement('button'); b.className = 'tb' + (B.paint === i ? ' sel' : ''); b.innerHTML = '<span class="sw" style="background:' + (p ? p.replace(/[\d.]+\)$/, '1)') : 'repeating-linear-gradient(45deg,#fff 0 4px,#bbb 4px 8px)') + '"></span>' + (p ? '' : 'Quitar'); b.onclick = function () { B.paint = i; buildUI(); }; pal.appendChild(b); });
+      var cur = RS.SHAPES[B.shape];
+      if (B.cat === 'est') { pal.appendChild(sep()); matButtons(pal, B); }
+      info = cur.name + (cur.desc ? ': ' + cur.desc : '') + ' · Coste ' + RS.pieceCost(B.curPiece()) + (cur.trap ? ' · Trampas ' + B.trapCount() + '/' + RS.MAX_TRAPS : '');
+    } else if (B.tool === 'tpl') {
+      RS.TEMPLATES.forEach(function (T, i) { var b = tb(tplIcon(T, B.mat), B.tpl === i, function () { B.tpl = i; buildUI(); }); b.title = T.name; pal.appendChild(b); });
+      pal.appendChild(sep()); matButtons(pal, B);
+      info = RS.TEMPLATES[B.tpl].name + ': toca donde quieras y se apoya sola encima de lo que haya. Apila pisos para subir alto.';
+    } else if (B.tool === 'swap') { matButtons(pal, B); info = 'Toca una pieza para cambiarle el material.'; }
+    else if (B.tool === 'paint') {
+      RS.PAINTS.forEach(function (p, i) { var sw = document.createElement('span'); sw.className = 'sw'; sw.style.background = p ? p.replace(/[\d.]+\)$/, '1)') : 'repeating-linear-gradient(45deg,#fff 0 4px,#bbb 4px 8px)'; pal.appendChild(tb(sw, B.paint === i, function () { B.paint = i; buildUI(); })); });
+      info = 'Toca piezas para pintarlas (la última muestra quita la pintura).';
     } else if (B.tool === 'deco') {
-      var sh = 'deco_' + S.clan, n = RS.atlas[sh].length;
-      for (var i = 0; i < n; i++) (function (i) {
-        var b = document.createElement('button'); b.className = 'tb' + (B.decoIdx === i ? ' sel' : ''); var c = document.createElement('canvas'); c.width = 60; c.height = 60;
-        var a = RS.spAspect(sh, i), w = a > 1 ? 56 : 56 * a, h = a > 1 ? 56 / a : 56; RS.drawSp(c.getContext('2d'), sh, i, 30, 30, w, h);
-        b.appendChild(c); b.onclick = function () { B.decoIdx = i; buildUI(); }; pal.appendChild(b);
-      })(i);
-    } else {
-      var help = { erase: 'Toca una pieza, gema, adorno o el cartel para quitarlo.', weld: 'Toca una pieza para soldarla a las que toca: aguanta más, cuesta 1 punto.', gem: 'Coloca hasta 3 gemas en huecos: el rival gana si las tira todas.', sign: 'Toca donde quieras colgar el cartel con el nombre.' }[B.tool];
-      pal.innerHTML = '<span class="small" style="text-align:left">' + help + '</span>';
-    }
+      var dsh = 'deco_' + S.clan, n = RS.atlas[dsh].length;
+      for (var k = 0; k < n; k++) (function (k) {
+        if (k === RS.CLANS[S.clan].sign) return;
+        var c = document.createElement('canvas'); c.width = 60; c.height = 60; var a = RS.spAspect(dsh, k);
+        RS.drawSp(c.getContext('2d'), dsh, k, 30, 30, a > 1 ? 56 : 56 * a, a > 1 ? 56 / a : 56);
+        pal.appendChild(tb(c, B.decoIdx === k, function () { B.decoIdx = k; buildUI(); }));
+      })(k);
+    } else info = { move: 'Toca una pieza para cogerla y luego toca dónde dejarla. Girar y Voltear también funcionan mientras la llevas.', pick: 'Toca una pieza para copiar su forma y material.', erase: 'Toca una pieza, gema, adorno o el cartel para quitarlo.', weld: 'Toca una pieza para soldarla a las que toca (+1 punto). Las soldaduras aguantan, pero un golpe fuerte las rompe.', gem: 'Pon hasta 3 gemas: el rival gana si las tira todas. Escóndelas bien.', sign: 'Toca donde quieras colgar el cartel con el nombre.', pan: 'Arrastra para mover la vista. Con dos dedos también puedes mover y hacer zoom en cualquier herramienta.' }[B.tool] || '';
+    $('b_info').textContent = info; buildUI.last = B.tool;
     updB();
   }
   function updB() {
     if (!builder) return;
-    $('b_budget').textContent = builder.cost() + '/' + RS.BUILD.BUDGET;
+    $('b_budget').textContent = builder.cost() + '/' + builder.budget;
     $('b_state').textContent = builder.stable ? '✔ Estable' : '⚠ Sin probar';
     $('b_state').style.color = builder.stable ? '#7f7' : '#fd6';
   }
@@ -275,7 +308,7 @@
     RS.loadBg(S.clan).then(function () {
       if (cur !== 'build') return;
       if (builder) builder.destroy();
-      builder = new RS.Builder(cv, { clan: S.clan, layout: S.layout, stable: S.stable, name: S.name, onChange: updB });
+      builder = new RS.Builder(cv, { clan: S.clan, layout: S.layout, stable: S.stable, name: S.name, budget: RS.buildBudget(S, maxWorld()), onChange: function () { if (builder && builder.tool !== buildUI.last) buildUI(); else updB(); } });
       buildUI();
     });
   };

@@ -1,0 +1,20 @@
+const puppeteer = require('puppeteer-core');const sleep=(m)=>new Promise(r=>setTimeout(r,m));
+(async()=>{const b=await puppeteer.launch({executablePath:'/usr/bin/google-chrome',args:['--no-sandbox']});const p=await b.newPage();
+await p.setViewport({width:960,height:444,deviceScaleFactor:2,isMobile:true,isLandscape:true});
+const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:8123/index.html');await p.evaluate(()=>{localStorage.setItem('rollsiege_v1',JSON.stringify({clan:'azteca',name:'Templo Albert',unlockAll:true}))});await p.reload();
+await p.waitForFunction(()=>document.getElementById('title').classList.contains('show'),{timeout:30000});
+await p.evaluate(()=>RS._dbg.show('build'));await sleep(1200);
+await p.click('#b_pal .tb.cat:nth-child(2)');await sleep(300);await p.screenshot({path:'shots/c1.png'});
+await p.click('#b_pal .tb.cat:nth-child(3)');await sleep(300);await p.screenshot({path:'shots/c2.png'});
+await p.click('#b_tools .tb:nth-child(2)');await sleep(300);await p.mouse.move(300,200);await sleep(100);await p.screenshot({path:'shots/c3.png'});
+// pila de pisos
+const at=async(x,y)=>p.evaluate((x,y)=>{const B=RS._dbg.builder;return [B.sx(x)/B.dpr,B.sy(y)/B.dpr]},x,y);
+const tap=async(x,y)=>{const [a,c]=await at(x,y);await p.mouse.move(a,c);await p.mouse.down();await p.mouse.up();await sleep(80);};
+await p.evaluate(()=>{const B=RS._dbg.builder;B.tpl=2;B.mat=1});for(const y of [0.5,3,5.5,8])await tap(4,y);
+await p.evaluate(()=>{const B=RS._dbg.builder;B.tpl=8;B.mat=1});await tap(4,11);
+await p.evaluate(()=>{const B=RS._dbg.builder;B.setTool('gem')});await tap(3,1);await tap(3,3.5);await tap(3,6);
+await p.evaluate(()=>{RS._dbg.builder.zoom(0.7)});
+await p.click('#b_test');await p.waitForFunction(()=>!RS._dbg.builder.sim,{timeout:30000});await sleep(200);
+console.log('stable',await p.evaluate(()=>RS._dbg.builder.stable), await p.evaluate(()=>RS._dbg.builder.cost()));await p.screenshot({path:'shots/c4.png'});
+console.log(errs);await b.close();})();

@@ -113,3 +113,7 @@ input, select { font-family: Nunito; font-weight: 800; font-size: 3vh; padding: 
 
 .panel h2 { color: #fff4d6; }
 #levels .panel, .modal .panel { min-width: 56vw; }
+.binfo { font-size: 2.2vh; opacity: .9; padding: 0 .5vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb.cat { background: #5a3a1c; font-size: 2.4vh; }
+.tb.cat.sel { background: #f0a020; }
+.tb canvas { height: 6vh; width: auto; }

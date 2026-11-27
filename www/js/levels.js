@@ -78,7 +78,8 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     var boss = n === RS.LEVELS_PER_WORLD;
     var mods = Math.min(4, 1 + Math.floor(n / 6) + (w > 2 ? 1 : 0));
     var floors = Math.min(3, 1 + Math.floor(n / 8) + (w >= 4 ? 1 : 0));
-    var x = 17 + Math.floor(R() * 3);
+    var x = 17 + Math.floor(R() * 3), R2 = rng(w * 7777 + n * 131 + 3), trapsLeft = Math.min(2, Math.floor((w - 2) / 2) + (n > 12 ? 1 : 0));
+    var TRAPS_W = ['escudo', 'muelle', 'ventilador', 'torreta'];
     if (boss) {
       x += B.wall(x, 2) + 1.5; x += B.bigTower(x, Math.min(3, 2 + Math.floor(w / 3))) + 1.5; x += B.tower(x, Math.min(3, floors + 1)) + 1;
     } else {
@@ -91,9 +92,18 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
         else if (k === 'pyramid') x += B.pyramid(x, 2 + Math.floor(R() * 2));
         else if (k === 'bridge') x += B.bridge(x);
         else x += B.bigTower(x, Math.max(1, floors - 1));
-        x += 1.5 + Math.floor(R() * 2);
+        var gap = 1.5 + Math.floor(R() * 2);
+        // en los huecos: barriles/TNT (ayudan) y trampas de los mapaches (más adelante)
+        var r2 = R2();
+        if (i < mods - 1 || gap >= 2) {
+          if (r2 < 0.22 + w * 0.02) B.add(r2 < 0.08 + w * 0.02 && w >= 2 ? 'tnt' : 'barril', x + gap / 2, 0.5, 0);
+          else if (w >= 3 && r2 < 0.22 + w * 0.06 && trapsLeft > 0) { trapsLeft--; B.add(TRAPS_W[Math.floor(R2() * Math.min(TRAPS_W.length, w - 2))], x + gap / 2, 0.5, 3); }
+        }
+        x += gap;
       }
     }
+
+
     if (!B.gems.length) B.gem(x - 3, 0);
     // demasiadas gemas: deja como máximo 1 + nivel/7 (máx. 4), salvo jefe
     var maxG = boss ? 5 : Math.min(4, 1 + Math.floor(n / 7) + (w >= 3 ? 1 : 0));

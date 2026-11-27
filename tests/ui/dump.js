@@ -1,0 +1,10 @@
+const puppeteer = require('puppeteer-core');const sleep=(m)=>new Promise(r=>setTimeout(r,m));
+(async()=>{const b=await puppeteer.launch({executablePath:'/usr/bin/google-chrome',args:['--no-sandbox']});const p=await b.newPage();
+await p.setViewport({width:960,height:444,deviceScaleFactor:2,isMobile:true,isLandscape:true});
+await p.goto('http://localhost:8123/index.html');await p.evaluate(()=>{localStorage.setItem('rollsiege_v1',JSON.stringify({clan:'japon',name:'C',unlockAll:true,trophies:400}))});await p.reload();
+await p.waitForFunction(()=>document.getElementById('title').classList.contains('show'),{timeout:30000});
+await p.evaluate(()=>RS._dbg.show('build'));await sleep(1200);
+const r=await p.evaluate(()=>{const B=RS._dbg.builder;B.setTool('tpl');B.tpl=1;B.mat=1;
+ let ps=B.tplPieces(5,0.5);ps.forEach(q=>B.L.pieces.push(q));ps=B.tplPieces(5,3);ps.forEach(q=>B.L.pieces.push(q));
+ B.tpl=3;ps=B.tplPieces(12,0.5);ps.forEach(q=>B.L.pieces.push(q));return B.L.pieces});
+require('fs').writeFileSync('/tmp/lay.json',JSON.stringify(r));await b.close();})();
