@@ -6,11 +6,11 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
   var V = pl.Vec2;
 
   // giros: 0 = normal, 1 = vertical (90°), 2 = diagonal subiendo (45°), 3 = diagonal bajando (-45°)
-  RS.ANG = [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4];
+  RS.ANG = [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4, Math.PI]; // 4 = boca abajo (triángulos en esquinas altas)
   RS.rotAng = function (p) { return RS.ANG[p.rot || 0] || 0; };
   function pieceSize(p) {
     var s = RS.SHAPES[p.s], r = p.rot || 0;
-    if (r >= 2) { var d = (s.w + s.h) * Math.SQRT1_2; return { w: Math.round(d * 2) / 2, h: Math.round(d * 2) / 2, diag: true }; }
+    if (r === 2 || r === 3) { var d = (s.w + s.h) * Math.SQRT1_2; return { w: Math.round(d * 2) / 2, h: Math.round(d * 2) / 2, diag: true }; }
     return (r % 2) ? { w: s.h, h: s.w } : { w: s.w, h: s.h };
   }
   // rectángulo girado real (para no chocar con la caja grande de una diagonal)

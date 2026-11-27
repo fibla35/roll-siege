@@ -515,10 +515,21 @@
         var p = { s: i, m: sh.mat != null ? sh.mat : B.mat, rot: sh.sprite || sh.kind === 'circle' ? 0 : B.rot, flip: B.flip };
         var b = tb(pieceIcon(p, 72, 48), B.shape === i, function () { B.shape = i; buildUI(); });
         b.title = sh.name; pal.appendChild(b);
+        // arrastrar la pieza hacia arriba la saca de la paleta y se suelta donde quieras
+        b.addEventListener('pointerdown', function (ev) {
+          var x0 = ev.clientX, y0 = ev.clientY, id = ev.pointerId, sl0 = pal.scrollLeft, mode = null;
+          function mv(e) { if (e.pointerId !== id) return; var dx = e.clientX - x0, dy = e.clientY - y0;
+            if (!mode && Math.hypot(dx, dy) > 12) mode = -dy > Math.abs(dx) * 0.6 ? 'out' : 'scroll';
+            if (mode === 'out') { off(); B.extStart(e, i); } else if (mode === 'scroll') pal.scrollLeft = sl0 - dx; }
+          function up(e) { if (e.pointerId === id) off(); }
+          function off() { removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); }
+          addEventListener('pointermove', mv); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+        });
       });
       var cur = RS.SHAPES[B.shape];
       if (B.cat === 'est') { pal.appendChild(sep()); matButtons(pal, B); }
       info = cur.name + (cur.desc ? ': ' + cur.desc : '') + ' · Coste ' + RS.pieceCost(B.curPiece()) + (cur.trap ? ' · Trampas ' + B.trapCount() + '/' + RS.MAX_TRAPS : '');
+      if (!cur.desc) info += ' · Arrástrala desde aquí o toca donde ponerla · mantén el dedo sobre una pieza para moverla';
     } else if (B.tool === 'tpl') {
       RS.TEMPLATES.forEach(function (T, i) { var b = tb(tplIcon(T, B.mat), B.tpl === i, function () { B.tpl = i; buildUI(); }); b.title = T.name; pal.appendChild(b); });
       pal.appendChild(sep()); matButtons(pal, B);

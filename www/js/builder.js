@@ -7,7 +7,7 @@
   RS.buildBudget = function (S, maxWorld) { return Math.min(480, 160 + 25 * ((maxWorld || 1) - 1) + Math.floor((S.trophies || 0) / 4)); };
   RS.pieceCost = function (p) {
     var s = RS.SHAPES[p.s];
-    return (s.cost != null ? s.cost : RS.MATS[p.m].cost * (s.cost3 || (s.w * s.h >= 2 ? 2 : 1))) + (p.weld && !s.weld ? 1 : 0);
+    return (s.cost != null ? s.cost : RS.MATS[p.m].cost * (s.cost3 || (s.w * s.h >= 2 ? 2 : 1))) + (p.weld && !s.weld && !p.corner ? 1 : 0);
   };
   function I(id) { return RS.SHAPE_IDX[id]; }
   // plantillas: [forma, material (null = el elegido), x, y (centro, desde la esquina inferior izquierda), rot, flip, soldar]
@@ -78,10 +78,18 @@
     var self = this;
     this._d = function (e) {
       self.ptrs[e.pointerId] = { x: (e.clientX - RS.stage.x) * self.dpr, y: (e.clientY - RS.stage.y) * self.dpr, x0: (e.clientX - RS.stage.x) * self.dpr, y0: (e.clientY - RS.stage.y) * self.dpr };
-      if (Object.keys(self.ptrs).length === 2) { self.multi = true; self.pinch = self.pinchInfo(); self.ghost = null; }
-      else { self.multi = false; self.moved = 0; self.panStart = { cx: self.cx, cy: self.cy }; self.move(e); }
+      if (Object.keys(self.ptrs).length === 2) { clearTimeout(self.holdT); self.downHit = null; self.multi = true; self.pinch = self.pinchInfo(); if (!self.drag) self.ghost = null; }
+      else {
+        self.multi = false; self.moved = 0; self.panStart = { cx: self.cx, cy: self.cy }; self.dragE = null;
+        // dedo sobre una pieza ya puesta: al moverlo o al mantenerlo 0,35 s, la coges y la arrastras
+        var wx = self.wx(self.ptrs[e.pointerId].x), wy = self.wy(self.ptrs[e.pointerId].y), hit = self.sim ? null : self.pieceAt(wx, wy);
+        self.downHit = (self.tool === 'place' || self.tool === 'move') && !self.carry && hit ? hit : null;
+        clearTimeout(self.holdT); if (self.downHit) self.holdT = setTimeout(function () { if (self.downHit && (self.moved || 0) < 14 * self.dpr) self.grab(e); }, 350);
+        self.move(e);
+      }
     };
     this._m = function (e) {
+      if (self.ext != null && e.pointerId === self.ext) { self.extMove(e); return; }
       var P = self.ptrs[e.pointerId];
       if (!P) { if (e.pointerType === 'mouse') self.move(e); return; }
       P.x = (e.clientX - RS.stage.x) * self.dpr; P.y = (e.clientY - RS.stage.y) * self.dpr; self.moved = Math.max(self.moved || 0, Math.hypot(P.x - P.x0, P.y - P.y0));
@@ -91,10 +99,17 @@
         self.cx -= (n.x - o.x) / self.s; self.cy += (n.y - o.y) / self.s; self.clampView(); self.pinch = n;
       } else if (self.tool === 'pan') {
         self.cx = self.panStart.cx - (P.x - P.x0) / self.s; self.cy = self.panStart.cy + (P.y - P.y0) / self.s; self.clampView();
-      } else self.move(e);
+      } else {
+        if (self.downHit && !self.drag && self.moved > 14 * self.dpr) self.grab(e);
+        self.move(e);
+      }
     };
     this._u = function (e) {
+      if (e.type === 'pointercancel' && self.drag) { self.drag = false; if (self.carry) { self.L.pieces.push(self.carry.orig); self.hist.pop(); self.carry = null; self.ghost = null; self.changed(); } }
+      if (self.ext != null && e.pointerId === self.ext) { if (e.type === 'pointercancel') { self.ext = null; self.ghost = null; } else self.extDrop(e); return; }
       if (!self.ptrs[e.pointerId]) return;
+      clearTimeout(self.holdT); self.downHit = null;
+      if (self.drag) { delete self.ptrs[e.pointerId]; self.dropCarry(e); return; }
       delete self.ptrs[e.pointerId];
       if (self.multi) { if (!Object.keys(self.ptrs).length) self.multi = false; return; }
       if (self.tool === 'pan' || e.type !== 'pointerup') return;
@@ -130,7 +145,27 @@
     });
     return floor + h / 2;
   };
+  // triángulo en una esquina alta interior: se pega bajo el techo y contra la pared, boca abajo y soldado
+  Builder.prototype.cornerSnap = function (p, x, y) {
+    var s = RS.SHAPES[p.s]; if (s.id !== 'tri') return null;
+    var self = this, ceil = null, walls = [];
+    this.L.pieces.forEach(function (q) {
+      var a = RS.pieceAABB(q);
+      if (x > a.x0 && x < a.x1 && a.y0 > y - 0.1 && a.y0 - y < 1.6 && a.y0 >= 1 && (!ceil || a.y0 < ceil.y0)) ceil = a;
+    });
+    if (!ceil) return null;
+    var top = ceil.y0, cy = top - 0.5;
+    this.L.pieces.forEach(function (q) { var a = RS.pieceAABB(q); if (a.y0 < top - 0.3 && a.y1 > cy - 0.3) walls.push(a); });
+    var L = null, R = null;
+    walls.forEach(function (a) { if (a.x1 <= x + 0.05 && x - a.x1 < 1.6 && (!L || a.x1 > L.x1)) L = a; if (a.x0 >= x - 0.05 && a.x0 - x < 1.6 && (!R || a.x0 < R.x0)) R = a; });
+    var side = L && R ? (x - L.x1 < R.x0 - x ? 'L' : 'R') : L ? 'L' : R ? 'R' : null; if (!side) return null;
+    var q = Object.assign({}, p, { rot: 4, weld: true, corner: true });
+    q.x = side === 'L' ? L.x1 + 0.5 : R.x0 - 0.5; q.y = cy; q.flip = side === 'L'; // boca abajo: ángulo recto arriba, contra la pared
+    return this.why(q, 0) ? null : q;
+  };
   Builder.prototype.snapPiece = function (p, x, y) {
+    var cs = this.cornerSnap(p, x, y); if (cs) { Object.assign(p, cs); return p; }
+    if (p.corner) { p.rot = 0; p.weld = false; p.corner = false; p.flip = false; }
     var z = RS.pieceSize(p), x0 = Math.round((x - z.w / 2) * 2) / 2;
     p.x = x0 + z.w / 2; p.y = this.dropY(x0, x0 + z.w, y - z.h / 2, z.h);
     return p;
@@ -139,8 +174,8 @@
     var a = RS.pieceAABB(p), s = RS.SHAPES[p.s];
     if (a.x0 < -0.01 || a.x1 > GW + 0.01 || a.y1 > GH + 0.01) return 'Fuera de la zona de construcción';
     if (s.ground && a.y0 > 0.01) return 'Esta pieza solo va en el suelo';
-    var oa = RS.pieceOBB(p), diagA = (p.rot || 0) >= 2;
-    var hit = this.L.pieces.some(function (q) { var b = RS.pieceAABB(q); var box = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.02 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.02; if (!box) return false; if (!diagA && (q.rot || 0) < 2) return true; return RS.obbOverlap(oa, RS.pieceOBB(q)); });
+    var oa = RS.pieceOBB(p), diagA = p.rot === 2 || p.rot === 3;
+    var hit = this.L.pieces.some(function (q) { var b = RS.pieceAABB(q); var box = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.02 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.02; if (!box) return false; if (!diagA && q.rot !== 2 && q.rot !== 3) return true; return RS.obbOverlap(oa, RS.pieceOBB(q)); });
     if (hit || this.L.gems.some(function (g) { return g.x > a.x0 && g.x < a.x1 && g.y > a.y0 && g.y < a.y1; })) return 'No cabe ahí';
     if (this.cost() + (extraCost || 0) > this.budget) return 'Sin puntos de construcción';
     return null;
@@ -165,12 +200,35 @@
     return null;
   };
 
+  Builder.prototype.lift = function (e) { return (this.drag || this.ext != null) && e.pointerType !== 'mouse' ? 50 * this.dpr : 0; };
+  // coger una pieza ya colocada para arrastrarla
+  Builder.prototype.grab = function (e) {
+    var hit = this.downHit; this.downHit = null; clearTimeout(this.holdT); if (!hit || this.carry) return;
+    this.snap(); this.L.pieces.splice(this.L.pieces.indexOf(hit), 1); this.carry = Object.assign({}, hit, { orig: hit }); this.drag = true;
+    RS.Audio.sfx('whoosh', 0.4); if (RS.vib) RS.vib(25); this.changed(); this.move(e);
+  };
+  Builder.prototype.dropCarry = function (e) {
+    var x = this.wx((e.clientX - RS.stage.x) * this.dpr), y = this.wy((e.clientY - RS.stage.y) * this.dpr - this.lift(e)), q = this.snapPiece(this.carryCopy(), x, y), err = this.why(q, RS.pieceCost(q));
+    this.drag = false;
+    if (err) { this.L.pieces.push(this.carry.orig); this.hist.pop(); this.toast(err); RS.Audio.sfx('stone_hit', 0.3); }
+    else { this.L.pieces.push(q); RS.Audio.sfx('place', 0.6); }
+    this.carry = null; this.ghost = null; this.changed();
+  };
+  // arrastrar una pieza nueva desde la paleta
+  Builder.prototype.extStart = function (e, shapeIdx) { this.shape = shapeIdx; if (this.tool !== 'place') this.setTool('place'); this.ext = e.pointerId; this.extMove(e); };
+  Builder.prototype.extMove = function (e) { var py = (e.clientY - RS.stage.y) * this.dpr - this.lift(e); if (py > this.H - this.bot) { this.ghost = null; return; } this.move(e); };
+  Builder.prototype.extDrop = function (e) {
+    var lf = this.lift(e) / this.dpr; this.ext = null; var py = (e.clientY - lf - RS.stage.y) * this.dpr;
+    if (py < this.H - this.bot) { var o = { clientX: e.clientX, clientY: e.clientY - lf, pointerType: e.pointerType }; this.tap(o); }
+    this.ghost = null; if (this.o.onChange) this.o.onChange();
+  };
+
   Builder.prototype.move = function (e) {
     if (this.sim) return;
-    var x = this.wx((e.clientX - RS.stage.x) * this.dpr), y = this.wy((e.clientY - RS.stage.y) * this.dpr);
+    var x = this.wx((e.clientX - RS.stage.x) * this.dpr), y = this.wy((e.clientY - RS.stage.y) * this.dpr - this.lift(e));
     if (this.tool === 'place') { var p = this.snapPiece(this.curPiece(), x, y); p.bad = this.why(p, RS.pieceCost(p)); this.ghost = { p: p }; }
     else if (this.tool === 'tpl') { var ps = this.tplPieces(x, y); this.ghost = { ps: ps, bad: this.tplWhy(ps) }; }
-    else if (this.tool === 'move' && this.carry) { var q = this.snapPiece(this.carryCopy(), x, y); q.bad = this.why(q, RS.pieceCost(q)); this.ghost = { p: q }; }
+    else if (this.carry) { var q = this.snapPiece(this.carryCopy(), x, y); q.bad = this.why(q, RS.pieceCost(q)); this.ghost = { p: q }; }
     else this.ghost = { x: x, y: y };
   };
   Builder.prototype.carryCopy = function () { var c = Object.assign({}, this.carry); delete c.orig; return c; };

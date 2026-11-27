@@ -6,7 +6,7 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     { id: 'bloque', name: 'Bloque', w: 2, h: 1, kind: 'box', slice: true },
     { id: 'tablon', name: 'Tablón', w: 4, h: 0.5, kind: 'box', slice: true },
     { id: 'viga', name: 'Viga', w: 6, h: 0.5, kind: 'box', slice: true },
-    { id: 'tri', name: 'Triángulo', noTop: true, w: 1, h: 1, kind: 'poly', pts: [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5]] },
+    { id: 'tri', name: 'Triángulo', desc: 'Ponlo en el suelo o toca en una esquina alta (bajo un techo y junto a una pared): se coloca boca abajo como refuerzo, soldado gratis.', noTop: true, w: 1, h: 1, kind: 'poly', pts: [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5]] },
     { id: 'tejado', name: 'Tejado', noTop: true, w: 2, h: 1, kind: 'poly', pts: [[-1, -0.5], [1, -0.5], [0, 0.5]] },
     { id: 'arco', name: 'Arco', w: 2, h: 1, kind: 'arch' },
     { id: 'rueda', name: 'Rueda', noTop: true, w: 1, h: 1, kind: 'circle', r: 0.5 },

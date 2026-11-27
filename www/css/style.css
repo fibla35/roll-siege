@@ -311,3 +311,5 @@ html[lang=en] .rtitle { display: none; } html[lang=en] .rtitle_txt { display: bl
 #build .binfo { font-size: max(calc(2.2 * var(--vh)), 12px); }
 #build .tools, #build .pal { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; scrollbar-width: none; }
 #build .tools::-webkit-scrollbar, #build .pal::-webkit-scrollbar { display: none; }
+
+#build .pal .tb { touch-action: none; }

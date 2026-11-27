@@ -26,7 +26,7 @@ EN = {
 'Tocadiscos (toca para escuchar)': 'Jukebox (tap to listen)', '¿Seguro?': 'Are you sure?', 'Cancelar': 'Cancel', 'Aceptar': 'OK', 'Idioma': 'Language',
 'Copia de seguridad': 'Backup', 'Copiar código': 'Copy code', 'Restaurar': 'Restore',
 # --- piezas y materiales
-'Cubo': 'Cube', 'Bloque': 'Block', 'Tablón': 'Plank', 'Viga': 'Beam', 'Triángulo': 'Triangle', 'Tejado': 'Roof', 'Tejado grande': 'Big roof', 'Tejado enorme': 'Huge roof', 'Arco': 'Arch', 'Rueda': 'Wheel',
+'Cubo': 'Cube', 'Bloque': 'Block', 'Tablón': 'Plank', 'Viga': 'Beam', 'Triángulo': 'Triangle', 'Ponlo en el suelo o toca en una esquina alta (bajo un techo y junto a una pared): se coloca boca abajo como refuerzo, soldado gratis.': 'Place it on the ground, or tap a high inside corner (under a roof, next to a wall): it goes in upside down as a free welded brace.', 'Tejado': 'Roof', 'Tejado grande': 'Big roof', 'Tejado enorme': 'Huge roof', 'Arco': 'Arch', 'Rueda': 'Wheel',
 'Escuadra': 'Bracket', 'Ángulo de hierro: se suelda a lo que toca y une esquinas.': 'Iron angle: welds to what it touches and joins corners.',
 'Puntal de madera': 'Wooden strut', 'Diagonal que apuntala paredes y pisos. Gira para la otra diagonal.': 'Diagonal that braces walls and floors. Rotate for the other diagonal.',
 'Puntal de hierro': 'Iron strut', 'Diagonal de hierro, mucho más resistente.': 'Iron diagonal, much tougher.', 'Contrafuerte': 'Buttress',
@@ -134,7 +134,7 @@ EN = {
 'está publicada en la liga. (Las defensas contra otros jugadores llegarán con el servidor online.)': 'is published in the league. (Defending against other players will arrive with the online server.)',
 'Construye y guarda tu fortaleza estable para que otros jugadores puedan asaltarla.': 'Build and save a stable fortress so other players can raid it.',
 # --- constructor
-'Poner': 'Place', 'Plantillas': 'Templates', 'Mover': 'Move', 'Copiar': 'Copy', 'Quitar': 'Remove', 'Soldar': 'Weld', 'Cambiar material': 'Change material', 'Pintar': 'Paint',
+'Arrástrala desde aquí o toca donde ponerla': 'Drag it from here or tap where to place it', 'mantén el dedo sobre una pieza para moverla': 'hold your finger on a piece to move it', 'Poner': 'Place', 'Plantillas': 'Templates', 'Mover': 'Move', 'Copiar': 'Copy', 'Quitar': 'Remove', 'Soldar': 'Weld', 'Cambiar material': 'Change material', 'Pintar': 'Paint',
 'Gema': 'Gem', 'Adorno': 'Decoration', 'Mover la vista': 'Pan view', 'diagonal ↗': 'diagonal ↗', 'diagonal ↘': 'diagonal ↘', 'Estructura': 'Structure', 'Refuerzos': 'Reinforcements',
 'Trampas': 'Traps', 'Se desbloquea en el mundo': 'Unlocks in world', 'Deshacer': 'Undo', 'Girar: normal → vertical → diagonales': 'Rotate: normal → vertical → diagonals', 'Giro:': 'Rotation:',
 'Voltear': 'Flip', 'Alejar': 'Zoom out', 'Acercar': 'Zoom in', 'Modo plano (pantalla azul)': 'Blueprint mode (blue screen)', 'Fondo de mar (limpio)': 'Sea background (clean)', 'Nombre de la fortaleza': 'Fortress name', 'Nombre:': 'Name:',
