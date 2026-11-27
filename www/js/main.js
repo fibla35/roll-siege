@@ -1,6 +1,18 @@
 // Pantallas, guardado, campaña, liga, constructor y ajustes.
 (function (RS) {
   var $ = function (id) { return document.getElementById(id); };
+  // escenario apaisado que siempre cabe en la pantalla (móvil, tableta, navegador o ventana estrecha)
+  RS.stage = { x: 0, y: 0, w: innerWidth, h: innerHeight };
+  function fitStage() {
+    var W = innerWidth, H = innerHeight, a = W / H, w = W, h = H;
+    if (a < 1.5) h = W / 1.5; else if (a > 2.3) w = H * 2.3;
+    w = Math.floor(w); h = Math.floor(h);
+    RS.stage = { x: Math.floor((W - w) / 2), y: Math.floor((H - h) / 2), w: w, h: h };
+    var st = document.getElementById('stage'), r = document.documentElement.style;
+    st.style.left = RS.stage.x + 'px'; st.style.top = RS.stage.y + 'px'; st.style.width = w + 'px'; st.style.height = h + 'px';
+    r.setProperty('--vh', (h / 100) + 'px'); r.setProperty('--vw', (w / 100) + 'px');
+  }
+  fitStage(); addEventListener('resize', fitStage);
   var cv = $('cv');
   var KEY = 'rollsiege_v1';
   var DEF = { clan: null, name: '', stars: {}, best: {}, coins: 300, trophies: 0, unlockAll: false, layout: null, stable: false, musicStyle: 'mezcla', vol: { music: 0.6, sfx: 0.8 }, cannon: 0, rivalSeed: 1, defLog: [], seenHint: 0 };
@@ -89,7 +101,7 @@
     RS.Audio.play('RSM01');
     $('m_stars').textContent = totalStars();
     var box = $('worldnodes'); box.innerHTML = '';
-    var W = innerWidth, H = innerHeight, sc = Math.max(W / 1600, H / 1066), ox = (W - 1600 * sc) / 2, oy = (H - 1066 * sc) / 2;
+    var W = RS.stage.w, H = RS.stage.h, sc = Math.max(W / 1600, H / 1066), ox = (W - 1600 * sc) / 2, oy = (H - 1066 * sc) / 2;
     RS.WORLDS.forEach(function (w, i) {
       var open = worldOpen(w.id), st = 0; for (var n = 1; n <= 20; n++) st += S.stars[w.id + '-' + n] || 0;
       var b = document.createElement('button'); b.className = 'wnode' + (open ? '' : ' locked');

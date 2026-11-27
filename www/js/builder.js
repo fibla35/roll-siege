@@ -39,7 +39,7 @@
   RS.Builder = Builder;
   Builder.prototype.destroy = function () { this.dead = true; cancelAnimationFrame(this.raf); this.cv.removeEventListener('pointerdown', this._d); removeEventListener('pointermove', this._m); removeEventListener('pointerup', this._u); removeEventListener('pointercancel', this._u); this.cv.removeEventListener('wheel', this._w); removeEventListener('resize', this._r); };
   Builder.prototype.resize = function () {
-    var d = Math.min(2, devicePixelRatio || 1); this.dpr = d; this.cv.width = innerWidth * d; this.cv.height = innerHeight * d; this.W = this.cv.width; this.H = this.cv.height;
+    var d = Math.min(2, devicePixelRatio || 1); this.dpr = d; this.cv.width = RS.stage.w * d; this.cv.height = RS.stage.h * d; this.W = this.cv.width; this.H = this.cv.height;
     this.top = this.H * 0.12; this.bot = this.H * 0.27;
     this.s0 = Math.min((this.W * 0.97) / (GW + 1), (this.H - this.top - this.bot) / (GH + 0.3));
     this.clampView();
@@ -65,14 +65,14 @@
   Builder.prototype.bind = function () {
     var self = this;
     this._d = function (e) {
-      self.ptrs[e.pointerId] = { x: e.clientX * self.dpr, y: e.clientY * self.dpr, x0: e.clientX * self.dpr, y0: e.clientY * self.dpr };
+      self.ptrs[e.pointerId] = { x: (e.clientX - RS.stage.x) * self.dpr, y: (e.clientY - RS.stage.y) * self.dpr, x0: (e.clientX - RS.stage.x) * self.dpr, y0: (e.clientY - RS.stage.y) * self.dpr };
       if (Object.keys(self.ptrs).length === 2) { self.multi = true; self.pinch = self.pinchInfo(); self.ghost = null; }
       else { self.multi = false; self.moved = 0; self.panStart = { cx: self.cx, cy: self.cy }; self.move(e); }
     };
     this._m = function (e) {
       var P = self.ptrs[e.pointerId];
       if (!P) { if (e.pointerType === 'mouse') self.move(e); return; }
-      P.x = e.clientX * self.dpr; P.y = e.clientY * self.dpr; self.moved = Math.max(self.moved || 0, Math.hypot(P.x - P.x0, P.y - P.y0));
+      P.x = (e.clientX - RS.stage.x) * self.dpr; P.y = (e.clientY - RS.stage.y) * self.dpr; self.moved = Math.max(self.moved || 0, Math.hypot(P.x - P.x0, P.y - P.y0));
       if (self.multi && Object.keys(self.ptrs).length === 2) {
         var n = self.pinchInfo(), o = self.pinch;
         self.zoom(n.d / o.d, n.x, n.y);
@@ -90,7 +90,7 @@
       if ((self.moved || 0) < 40 * self.dpr || self.tool === 'place' || self.tool === 'tpl' || (self.tool === 'move' && self.carry)) self.tap(e);
       if (e.pointerType !== 'mouse') self.ghost = null;
     };
-    this._w = function (e) { e.preventDefault(); self.zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX * self.dpr, e.clientY * self.dpr); };
+    this._w = function (e) { e.preventDefault(); self.zoom(e.deltaY < 0 ? 1.12 : 1 / 1.12, (e.clientX - RS.stage.x) * self.dpr, (e.clientY - RS.stage.y) * self.dpr); };
     this._r = function () { self.resize(); };
     this.cv.addEventListener('pointerdown', this._d); addEventListener('pointermove', this._m); addEventListener('pointerup', this._u); addEventListener('pointercancel', this._u);
     this.cv.addEventListener('wheel', this._w, { passive: false }); addEventListener('resize', this._r);
@@ -153,7 +153,7 @@
 
   Builder.prototype.move = function (e) {
     if (this.sim) return;
-    var x = this.wx(e.clientX * this.dpr), y = this.wy(e.clientY * this.dpr);
+    var x = this.wx((e.clientX - RS.stage.x) * this.dpr), y = this.wy((e.clientY - RS.stage.y) * this.dpr);
     if (this.tool === 'place') { var p = this.snapPiece(this.curPiece(), x, y); p.bad = this.why(p, RS.pieceCost(p)); this.ghost = { p: p }; }
     else if (this.tool === 'tpl') { var ps = this.tplPieces(x, y); this.ghost = { ps: ps, bad: this.tplWhy(ps) }; }
     else if (this.tool === 'move' && this.carry) { var q = this.snapPiece(this.carryCopy(), x, y); q.bad = this.why(q, RS.pieceCost(q)); this.ghost = { p: q }; }
@@ -173,8 +173,8 @@
   };
   Builder.prototype.tap = function (e) {
     if (this.sim) return;
-    var x = this.wx(e.clientX * this.dpr), y = this.wy(e.clientY * this.dpr), self = this;
-    if (y < -1.5 || x < -2 || x > GW + 2 || e.clientY * this.dpr > this.H - this.bot + 4 || e.clientY * this.dpr < this.top * 0.8) return;
+    var x = this.wx((e.clientX - RS.stage.x) * this.dpr), y = this.wy((e.clientY - RS.stage.y) * this.dpr), self = this;
+    if (y < -1.5 || x < -2 || x > GW + 2 || (e.clientY - RS.stage.y) * this.dpr > this.H - this.bot + 4 || (e.clientY - RS.stage.y) * this.dpr < this.top * 0.8) return;
     var hit = this.pieceAt(x, y), err;
     if (this.tool === 'place') {
       var p = this.snapPiece(this.curPiece(), x, y), sh = RS.SHAPES[p.s];

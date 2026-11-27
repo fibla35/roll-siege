@@ -73,7 +73,7 @@
 
   Game.prototype.resize = function () {
     var d = Math.min(2, window.devicePixelRatio || 1);
-    this.dpr = d; this.cv.width = Math.round(innerWidth * d); this.cv.height = Math.round(innerHeight * d);
+    this.dpr = d; this.cv.width = Math.round(RS.stage.w * d); this.cv.height = Math.round(RS.stage.h * d);
     this.W = this.cv.width; this.H = this.cv.height;
   };
 
@@ -111,7 +111,7 @@
   };
   Game.prototype.onDown = function (e) {
     if (this.paused || this.ended) return;
-    var x = e.clientX * this.dpr, y = e.clientY * this.dpr;
+    var x = (e.clientX - RS.stage.x) * this.dpr, y = (e.clientY - RS.stage.y) * this.dpr;
     if (this.state === 'aim' && this.intro > 0) { this.intro = 0; }
     if (this.state === 'aim' && x > this.W * 0.55 && this.camMaxX() > this.camHomeX() + 0.5) { this.pan = { x0: x, cx0: this.cam.x, d: 0 }; return; }
     if (this.state === 'aim' && !this.queue[this.sel].used) { this.view = 0; this.aim = { sx: x, sy: y, cx: x, cy: y, full: 0 }; RS.Audio.sfx('click', 0.4); }
@@ -121,9 +121,9 @@
     }
   };
   Game.prototype.onMove = function (e) {
-    if (this.pan) { this.pan.d = (this.pan.x0 - e.clientX * this.dpr) / this.cam.s; this.view = 2.5; return; }
+    if (this.pan) { this.pan.d = (this.pan.x0 - (e.clientX - RS.stage.x) * this.dpr) / this.cam.s; this.view = 2.5; return; }
     if (!this.aim) return;
-    this.aim.cx = e.clientX * this.dpr; this.aim.cy = e.clientY * this.dpr;
+    this.aim.cx = (e.clientX - RS.stage.x) * this.dpr; this.aim.cy = (e.clientY - RS.stage.y) * this.dpr;
     var dx = this.aim.sx - this.aim.cx, dy = this.aim.cy - this.aim.sy; // tirar hacia atrás → disparar hacia delante
     var len = Math.hypot(dx, dy);
     if (len < 8) return;
