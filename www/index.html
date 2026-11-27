@@ -20,7 +20,7 @@
 <div id="title" class="screen bgimg" style="background-image:url(img/title.webp)">
   <img src="img/ui/logo.webp" class="logo-big" alt="Roll Siege">
   <button class="btn green big" data-go="start">¡Jugar!</button>
-  <div class="ver">v0.5 prueba</div>
+  <div class="ver">v0.6 prueba</div>
 </div>
 
 <div id="clan" class="screen dim">
@@ -123,9 +123,10 @@
 </div></div>
 
 <div id="result" class="modal"><div class="panel">
-  <img id="r_title" class="rtitle" src="img/ui/t_victoria.webp">
+  <img id="r_title" class="rtitle" src="img/ui/t_victoria.webp"><div id="r_title_txt" class="rtitle_txt"></div>
   <div id="r_stars" class="stars"></div>
   <div id="r_text" class="rtext"></div>
+  <button class="btn adbtn" id="r_ad" style="display:none"></button>
   <div class="row"><button class="btn orange" id="r_retry"><img src="img/ui/i_retry.webp"></button><button class="btn blue" id="r_back"><img src="img/ui/i_map.webp"></button><button class="btn green" id="r_next"><img src="img/ui/i_next.webp"></button></div>
 </div></div>
 
@@ -170,7 +171,11 @@
     <label>Vibración <select id="s_vib"><option value="1">Activada</option><option value="0">Desactivada</option></select></label>
     <label>Clima y efectos <select id="s_fx"><option value="1">Activados</option><option value="0">Desactivados</option></select></label>
     <label>Zoom al impactar <select id="s_zoom"><option value="1">Sí</option><option value="0">No</option></select></label>
+    <label>Calidad gráfica <select id="s_gfx"><option value="high">Alta</option><option value="med">Media</option><option value="low">Baja</option></select></label>
+    <label>Modo Eco 🔋 <select id="s_eco"><option value="0">No</option><option value="1">Sí (30 fps, ahorra batería)</option></select></label>
     <label>Nivel del cañón (pruebas) <select id="s_can"><option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option></select></label>
+    <label>Idioma / Language <select id="s_lang" data-noi18n><option value="es">Español</option><option value="en">English</option></select></label>
+    <div class="row"><button class="btn green" id="s_backup">Copia de seguridad</button><button class="btn orange" id="s_restore">Restaurar</button></div>
     <div class="row"><button class="btn blue" id="s_unlock">Desbloquear todo (pruebas)</button><button class="btn red" id="s_reset">Borrar partida</button></div>
     <div class="small">Música por código · Roll Siege v0.4</div>
   </div><div class="setcol jbcol"><div class="jbt">Tocadiscos (toca para escuchar)</div><div id="s_jb" class="jb"></div>
@@ -186,6 +191,7 @@
 </div>
 
 <script src="js/planck.min.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/data.js"></script>
 <script src="js/phys.js"></script>
 <script src="js/levels.js"></script>
@@ -193,6 +199,7 @@
 <script src="js/game.js"></script>
 <script src="js/builder.js"></script>
 <script src="js/extras.js"></script>
+<script src="js/ads.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

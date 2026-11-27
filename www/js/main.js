@@ -29,12 +29,25 @@
     if (RS.img[name]) return Promise.resolve(RS.img[name]);
     return new Promise(function (ok) { var im = new Image(); im.onload = function () { RS.img[name] = im; ok(im); }; im.onerror = function () { ok(null); }; im.src = src || ('img/' + name + '.webp'); });
   };
+  // carga bajo demanda de hojas de sprites (para no gastar memoria en móviles sencillos)
+  RS.need = function (list) { return Promise.all((list || []).filter(function (n, i, a) { return n && RS.atlas && RS.atlas[n] && !RS.img[n] && a.indexOf(n) === i; }).map(function (n) { return RS.loadImg(n); })); };
+  RS.clanSheets = function (c) { return c ? ['blk_' + c + '0', 'blk_' + c + '1', 'blk_' + c + '2', 'can_' + c, 'deco_' + c] : []; };
+  RS.armSheets = function (arms) { var o = []; (arms || []).forEach(function (a) { [0, 'ball', 'abil'].forEach(function (f) { o.push(RS.armSprite(a, f)[0]); }); }); return o; };
+  RS.allArmSheets = function () { var o = []; for (var a = 0; a < RS.ARMS.length; a++) o = o.concat(RS.armSheets([a])); return o.concat(RS.SKIN_SHEETS); };
+  RS.levelSheets = function (L, ctx) {
+    var o = RS.clanSheets(ctx.style).concat(RS.clanSheets(RS.save.clan), RS.armSheets((L.arms || []).concat([1, 0])));
+    if (L.decoSheet) o.push(L.decoSheet);
+    (L.racs || []).forEach(function (r) { if (r.boss) o.push('boss' + (Math.floor((r.bi != null ? r.bi : RS.bossIdx(r.w || L.w || 1)) / 3) + 1)); else o.push('rac' + (Math.floor((r.t || 0) / 3) + 1)); });
+    if (ctx.defense) o.push('rac1');
+    return o;
+  };
   RS.loadBg = function (k) { return Promise.all(['', '_mid', '_ground'].map(function (s) { return RS.loadImg('bg_' + k + s); })); };
 
   // diálogo propio (alert/confirm/prompt no funcionan en todas partes)
-  function ask(text, cb, input) {
+  function ask(text, cb, input, code) {
     var m = $('dlg'); $('dlg_t').textContent = text; var inp = $('dlg_in');
     inp.style.display = input != null ? '' : 'none'; if (input != null) inp.value = input;
+    inp.className = code ? 'code' : ''; inp.maxLength = code ? 100000 : 20;
     m.classList.add('show');
     $('dlg_ok').onclick = function () { m.classList.remove('show'); cb(input != null ? inp.value : true); };
     $('dlg_no').onclick = function () { m.classList.remove('show'); };
@@ -184,9 +197,9 @@
 
   // ---------- partida ----------
   function startGame(level, ctx) {
-    ctxGame = ctx; ctxGame.level = level;
+    ctxGame = ctx; ctxGame.level = level; ctxGame.coins0 = S.coins;
     var bgKey = ctx.bg;
-    RS.loadBg(bgKey).then(function () {
+    Promise.all([RS.loadBg(bgKey), RS.need(RS.levelSheets(level, ctx))]).then(function () {
       show('hud');
       $('hud_lv').textContent = ctx.label;
       if (game) game.destroy();
@@ -252,6 +265,7 @@
     var a = RS.spAspect(sh, idx), w = a > 1 ? 104 : 104 * a, h = w / a; RS.drawSp(x, sh, idx, 60, 60, w, h);
   };
   SCREENS.events = function () {
+    if (!RS._allArms) { RS._allArms = 1; RS.need(RS.allArmSheets()).then(function () { if (cur === 'events') SCREENS.events(); }); }
     RS.Audio.play('RSM16');
     var box = $('evlist'); box.innerHTML = '';
     Object.keys(RS.EVENTS).forEach(function (ev) {
@@ -259,7 +273,7 @@
       d.className = 'evcard' + (open ? '' : ' closed'); d.style.backgroundImage = 'url(img/bg_' + E.bg + '.webp)';
       var m = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
       var when = E.from[1] + ' ' + m[E.from[0]] + ' – ' + E.to[1] + ' ' + m[E.to[0]];
-      d.innerHTML = '<h3><img src="img/ui/' + E.ico + '.webp" alt="">' + E.name + '</h3><div class="evd">' + (live ? '<b>¡En marcha!</b> · ' : open ? '<b>Modo pruebas</b> · ' : 'Próximamente · ') + when + ' · 10 niveles · gana 6 skins de Bolo</div>';
+      d.innerHTML = '<h3><img src="img/ui/' + E.ico + '.webp" alt="">' + E.name + '</h3><div class="evd">' + (live ? '<b>¡En marcha!</b> · ' : open ? '<b>Modo pruebas</b> · ' : 'Próximamente · ') + when + ' · 10 niveles · ' + (E.chests ? 'premios en cofres' : 'gana 6 skins de Bolo') + '</div>';
       var g = document.createElement('div'); g.className = 'evgrid';
       for (var n = 1; n <= RS.EVENT_LEVELS; n++) (function (n) {
         var lo = open && (n === 1 || S.unlockAll || !!S.stars[evKey(ev, n - 1)]), st = S.stars[evKey(ev, n)] || 0, b = document.createElement('button');
@@ -272,6 +286,7 @@
       d.appendChild(g);
       var sk = document.createElement('div'); sk.className = 'evskins';
       E.skins.forEach(function (k) { var c = document.createElement('canvas'); if (S.skins.indexOf(k) < 0) c.className = 'no'; c.title = RS.Extras.SKINS[k]; RS.skinPreview(c, k); sk.appendChild(c); });
+      if (E.chests) [1, 1, 1, 2, 2, 3].forEach(function (ck, i) { var im = document.createElement('img'); im.src = 'img/ui/' + RS.Extras.CHESTS[ck].img + '.webp'; im.className = 'evchest' + (S.stars[evKey(ev, [2, 4, 5, 7, 9, 10][i])] ? '' : ' no'); sk.appendChild(im); });
       d.appendChild(sk); box.appendChild(d);
     });
   };
@@ -331,6 +346,7 @@
     var c = ctxGame, txt = ''; $('hint').style.opacity = 0; $('armtip').classList.remove('show');
     RS.Audio.play(r.win ? 'RSM14_victoria' : 'RSM14_derrota');
     $('r_title').src = 'img/ui/' + (r.win ? 't_victoria' : 't_derrota') + '.webp';
+    $('r_title_txt').textContent = r.win ? 'VICTORY!' : 'DEFEAT'; $('r_title_txt').className = 'rtitle_txt' + (r.win ? '' : ' lose');
     var st = ''; for (var i = 0; i < 3; i++) st += '<img src="img/ui/star' + (i < r.stars ? 1 : 0) + '.webp">';
     $('r_stars').innerHTML = r.win ? st : '';
     txt = 'Puntos <b>' + r.score.toLocaleString('es') + '</b>';
@@ -370,7 +386,9 @@
       if (r.win) {
         var pv = S.stars[ek] || 0, ec = 40 + (r.stars - pv > 0 ? (r.stars - pv) * 20 : 0) + (c.n === 10 && !pv ? 300 : 0);
         S.stars[ek] = Math.max(pv, r.stars); S.coins += ec; txt += '<br>+' + ec + ' monedas';
-        var gi = EV_GIFT[c.n]; if (gi != null && S.skins.indexOf(E.skins[gi]) < 0) { S.skins.push(E.skins[gi]); txt += '<br>✨ ¡Skin nueva para Bolo: <b>' + RS.Extras.SKINS[E.skins[gi]] + '</b>!'; }
+        var gi = EV_GIFT[c.n];
+        if (gi != null && E.chests && !pv) { var ck = c.n === RS.EVENT_LEVELS ? 3 : c.n >= 7 ? 2 : 1; S.chests.push(ck); txt += '<br>🎁 ' + RS.Extras.CHESTS[ck].name + ' (en la Tienda)'; }
+        else if (gi != null && E.skins[gi] != null && S.skins.indexOf(E.skins[gi]) < 0) { S.skins.push(E.skins[gi]); txt += '<br>✨ ¡Skin nueva para Bolo: <b>' + RS.Extras.SKINS[E.skins[gi]] + '</b>!'; }
         if (c.n < RS.EVENT_LEVELS) $('r_next').style.display = '';
       } else txt += '<br>¡Casi! Prueba otro orden de armadillos.';
     } else if (c.kind === 'league') {
@@ -384,6 +402,14 @@
     if (c.defense) txt = defTxt + (r.win ? '<br>¡Has defendido tu fortaleza! +' + (20 + r.stars * 15) + ' monedas' : '<br>Refuerza tu fortaleza en «Mi fortaleza» y vuelve a intentarlo.');
     var parN = c.level && c.level.par;
     if (parN && !c.defense) txt += '<br>🎯 ★★★ con ' + parN + ' armadillo' + (parN > 1 ? 's' : '') + ' · has usado ' + r.used + (r.win && r.used > parN ? ' — ¡busca un tiro mejor!' : '');
+    // vídeo con premio: al perder, un armadillo más para seguir; al ganar, monedas dobles
+    var adB = $('r_ad'), coinsWon = S.coins - (c.coins0 != null ? c.coins0 : S.coins); adB.style.display = 'none';
+    if (!c.defense && c.kind !== 'league' && c.kind !== 'own') {
+      if (!r.win && !c.revived) { adB.textContent = RS.t ? RS.t('Ver vídeo: +1 armadillo') : 'Ver vídeo: +1 armadillo'; adB.style.display = ''; adB.onclick = function () {
+        RS.Ads.reward().then(function (ok) { if (!ok || !game) return; c.revived = true; $('result').classList.remove('show'); game.revive(); RS.Audio.play(c.music); toast('Premio por ver el vídeo'); }); }; }
+      else if (r.win && coinsWon > 0 && !c.doubled) { adB.textContent = RS.t ? RS.t('Ver vídeo: monedas x2') : 'Ver vídeo: monedas x2'; adB.style.display = ''; adB.onclick = function () {
+        RS.Ads.reward().then(function (ok) { if (!ok) return; c.doubled = true; S.coins += coinsWon; persist(); adB.style.display = 'none'; toast('+' + coinsWon + ' monedas'); }); }; }
+    }
     persist(); RS.Extras.levelEnd(c, r);
     $('r_text').innerHTML = txt; $('result').classList.add('show');
   }
@@ -425,7 +451,7 @@
     $('l_troph').textContent = S.trophies; $('l_coins').textContent = S.coins;
     var r = RS.makeRival(S.rivalSeed, S.trophies), c = RS.CLANS[r.clan];
     $('l_rival').innerHTML = '<canvas id="l_cv"></canvas><div><b>' + r.name + '</b>' + c.name + '<br>🏆 ' + r.trophies + '<br>Botín: hasta ' + r.loot + ' monedas<br>Gemas: ' + r.gems.length + '</div>';
-    miniDraw($('l_cv'), r, r.clan);
+    RS.need(RS.clanSheets(r.clan)).then(function () { if (cur === 'league') miniDraw($('l_cv'), r, r.clan); });
     $('l_def').textContent = S.layout && S.stable ? 'Tu fortaleza "' + S.name + '" está publicada en la liga. (Las defensas contra otros jugadores llegarán con el servidor online.)' : 'Construye y guarda tu fortaleza estable para que otros jugadores puedan asaltarla.';
   };
   $('l_next').onclick = function () { S.rivalSeed++; persist(); RS.Audio.sfx('whoosh'); SCREENS.league(); };
@@ -520,7 +546,7 @@
   }
   SCREENS.build = function () {
     RS.Audio.play(RS.CLANS[S.clan].music);
-    RS.loadBg(S.clan).then(function () {
+    Promise.all([RS.loadBg(S.clan), RS.need(RS.clanSheets(S.clan))]).then(function () {
       if (cur !== 'build') return;
       if (builder) builder.destroy();
       builder = new RS.Builder(cv, { clan: S.clan, layout: S.layout, stable: S.stable, name: S.name, getName: function () { return S.name; }, budget: RS.buildBudget(S, maxWorld()), onChange: function () { if (builder && builder.tool !== buildUI.last) buildUI(); else updB(); } });
@@ -548,6 +574,7 @@
 
   // ---------- armadillos ----------
   SCREENS.arms = function () {
+    if (!RS._allArms) { RS._allArms = 1; RS.need(RS.allArmSheets()).then(function () { if (cur === 'arms') SCREENS.arms(); }); }
     var g = $('armgrid'); g.innerHTML = '';
     RS.ARMS.forEach(function (a, i) {
       var open = armOpen(i), d = document.createElement('div'); d.className = 'arm' + (open ? '' : ' locked');
@@ -582,7 +609,7 @@
   SCREENS.settings = function () {
     var jb = $('s_jb'); jb.innerHTML = '';
     TRACKS.forEach(function (t) { var b = document.createElement('button'); b.className = 'tb' + (RS.Audio.cur === t[0] ? ' sel' : ''); b.textContent = '▶ ' + t[1]; b.onclick = function () { RS.Audio.init(); playTrack(t[0]); SCREENS.settings(); }; jb.appendChild(b); });
-    $('s_mus').value = S.vol.music; $('s_sfx').value = S.vol.sfx; $('s_style').value = S.musicStyle; $('s_can').value = S.cannon; $('s_fx').value = S.fx === false ? '0' : '1'; $('s_zoom').value = S.zoomFx === false ? '0' : '1'; $('s_vib').value = S.vib === false ? '0' : '1';
+    $('s_mus').value = S.vol.music; $('s_sfx').value = S.vol.sfx; $('s_style').value = S.musicStyle; $('s_can').value = S.cannon; $('s_fx').value = S.fx === false ? '0' : '1'; $('s_zoom').value = S.zoomFx === false ? '0' : '1'; $('s_gfx').value = S.gfx || RS.gfxAuto(); $('s_lang').value = RS.lang; $('s_eco').value = S.eco ? '1' : '0'; $('s_vib').value = S.vib === false ? '0' : '1';
     var sc = $('s_clan'); sc.innerHTML = ''; Object.keys(RS.CLANS).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = RS.CLANS[k].short; sc.appendChild(o); }); sc.value = S.clan;
     $('s_unlock').textContent = S.unlockAll ? 'Bloquear de nuevo' : 'Desbloquear todo (pruebas)';
   };
@@ -594,8 +621,24 @@
   $('s_vib').onchange = function () { S.vib = this.value === '1'; persist(); RS.vib(80); };
   $('s_fx').onchange = function () { S.fx = this.value === '1'; persist(); };
   $('s_zoom').onchange = function () { S.zoomFx = this.value === '1'; persist(); };
+  $('s_gfx').onchange = function () { S.gfx = this.value; persist(); toast({ high: 'Gráficos en calidad alta', med: 'Gráficos en calidad media', low: 'Gráficos en calidad baja: más fluido en móviles sencillos' }[S.gfx]); };
+  $('s_eco').onchange = function () { S.eco = this.value === '1'; persist(); toast(S.eco ? '🔋 Modo Eco activado: 30 fps y menos efectos' : 'Modo Eco desactivado'); };
   $('s_can').onchange = function () { S.cannon = +this.value; persist(); };
   $('s_unlock').onclick = function () { S.unlockAll = !S.unlockAll; persist(); SCREENS.settings(); toast(S.unlockAll ? 'Todo desbloqueado' : 'Bloqueado'); };
+  // idioma y copia de seguridad (un código que se pega en otro móvil)
+  $('s_lang').onchange = function () { S.lang = this.value; persist(); location.reload(); };
+  $('s_backup').onclick = function () {
+    var code = 'RS1:' + btoa(unescape(encodeURIComponent(JSON.stringify(S))));
+    try { navigator.clipboard.writeText(code).then(function () { toast('Copia de seguridad copiada'); }, function () {}); } catch (e) {}
+    ask('Guarda este código en un sitio seguro: con él recuperas tu partida en otro móvil.', function () {}, code, true);
+  };
+  $('s_restore').onclick = function () {
+    ask('Pega aquí tu código de copia de seguridad', function (v) {
+      try { var d = JSON.parse(decodeURIComponent(escape(atob(String(v).trim().replace(/^RS1:/, ''))))); if (!d || typeof d !== 'object' || !d.stars) throw 0;
+        localStorage.setItem(KEY, JSON.stringify(d)); toast('Partida restaurada'); setTimeout(function () { location.reload(); }, 700);
+      } catch (e) { toast('Código no válido'); }
+    }, '', true);
+  };
   $('s_reset').onclick = function () { ask('¿Borrar toda la partida?', function () { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); }); };
 
   // botón atrás de Android
@@ -615,10 +658,11 @@
   RS.Audio.vol.music = S.vol.music; RS.Audio.vol.sfx = S.vol.sfx;
   fetch('img/atlas.json').then(function (r) { return r.json(); }).then(function (atlas) {
     RS.atlas = atlas;
-    var names = Object.keys(atlas), done = 0;
+    var core = ['items', 'fx', 'pow', 'traps', 'siege', 'clouds', 'arm_master', 'arm_abil', 'arm2_master', 'arm2_abil', 'blk_bandido0', 'blk_bandido1', 'blk_bandido2'].concat(RS.clanSheets(S.clan));
+    var names = core.filter(function (n) { return atlas[n]; }), done = 0;
     return Promise.all(names.map(function (n) { return RS.loadImg(n).then(function () { done++; $('loadfill').style.width = Math.round(done / names.length * 100) + '%'; }); }));
   }).then(function () { return document.fonts ? document.fonts.load('20px Lilita') : null; }).then(function () {
-    show('title');
+    show('title'); if (RS.Ads) RS.Ads.init();
     RS.loadBg(S.clan || 'w1');
   });
   RS._dbg = { show: show, startLevel: startLevel, startEvent: startEvent, startHard: startHard, startMount: startMount, get game() { return game; }, get builder() { return builder; } };

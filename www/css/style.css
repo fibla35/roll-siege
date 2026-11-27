@@ -285,3 +285,19 @@ input, select { font-family: Nunito; font-weight: 800; font-size: calc(3 * var(-
 #levels.mountmode { background-color: #0f1d10; }
 .lv.mount { filter: hue-rotate(-95deg) saturate(1.1); }
 #levels.mountmode #levelgrid { grid-template-columns: repeat(5, 1fr); width: calc(60 * var(--vw)); }
+
+.rtitle_txt { display: none; font-family: Lilita, sans-serif; font-size: calc(11 * var(--vh)); line-height: 1; margin-top: calc(-6 * var(--vh)); letter-spacing: 1px;
+  background: linear-gradient(#fff6a8, #ffc21a 55%, #e07a10); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-stroke: 3px #5a2a08; filter: drop-shadow(0 4px 0 #3a1a04); }
+.rtitle_txt.lose { background: linear-gradient(#ffb0a0, #e84a3a 55%, #9a1a10); -webkit-background-clip: text; background-clip: text; }
+html[lang=en] .rtitle { display: none; } html[lang=en] .rtitle_txt { display: block; }
+#dlg_in.code { width: 90%; font-size: calc(2 * var(--vh)); }
+
+.evskins img.evchest { width: calc(8 * var(--vh)); height: calc(8 * var(--vh)); object-fit: contain; } .evskins img.evchest.no { filter: grayscale(1) brightness(.5); }
+#evlist { flex-wrap: wrap; } .evcard { min-width: calc(44 * var(--vw)); }
+
+/* vídeos con premio */
+.adbtn { background: linear-gradient(#7d4dff, #4a20b8); color: #fff; border: 3px solid #e6dcff; border-radius: calc(3 * var(--vh)); padding: calc(1 * var(--vh)) calc(2.5 * var(--vw)); font-family: Lilita, sans-serif; font-size: calc(3 * var(--vh)); margin: calc(.6 * var(--vh)) auto; display: block; box-shadow: 0 4px 0 #2a0f70; }
+.adbtn:before { content: '▶ '; }
+.fakead { position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 9999; display: flex; align-items: center; justify-content: center; color: #fff; font-family: Lilita, sans-serif; text-align: center; }
+.fakead div { display: flex; flex-direction: column; gap: 10px; font-size: 28px; } .fakead .fa_n { font-size: 64px; color: #ffd23f; } .fakead small { font-family: sans-serif; font-size: 13px; opacity: .7; }
+#events { overflow-y: auto; justify-content: flex-start; } #evlist { padding-bottom: calc(4 * var(--vh)); }

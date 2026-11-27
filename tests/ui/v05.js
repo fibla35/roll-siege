@@ -3,7 +3,7 @@
 const puppeteer = require('puppeteer-core'); const fs = require('fs');
 const sleep = (m) => new Promise(r => setTimeout(r, m));
 (async () => {
-  const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
+  const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required', '--lang=' + (process.env.LANGT || 'es-ES')], env: Object.assign({}, process.env, { LANG: (process.env.LANGT || 'es-ES').replace('-', '_') + '.UTF-8' }) });
   const p = await b.newPage(); const errs = [];
   p.on('pageerror', e => errs.push('ERR ' + e.message)); p.on('console', m => { if (m.type() === 'error' && !/favicon|404/.test(m.text())) errs.push('CON ' + m.text()); });
   await p.setViewport({ width: 960, height: 444, deviceScaleFactor: 2 });
@@ -166,6 +166,27 @@ const sleep = (m) => new Promise(r => setTimeout(r, m));
   ok('zoom al primer impacto', zoomed); await sleep(1500);
   ok('el zoom se deshace solo', await p.evaluate(() => { const g = RS._dbg.game; return !(g.focus && g.focus.t > 0 && g.focus.z); }));
   await closeModals();
+  // ---- vídeos con premio (simulados en el navegador)
+  await p.evaluate(() => { document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show')); RS._dbg.startLevel(3, 7, true, {}); }); await sleep(3200);
+  await p.evaluate(() => { const g = RS._dbg.game; g.queue.forEach(q => q.used = true); g.afterShot(); }); await sleep(3500);
+  ok('al perder se ofrece vídeo +1 armadillo', await p.evaluate(() => document.getElementById('r_ad').style.display !== 'none'));
+  await tap('#r_ad'); await sleep(3800);
+  ok('tras el vídeo se sigue jugando con un armadillo más', await p.evaluate(() => { const g = RS._dbg.game; return g && !g.ended && g.state === 'aim' && g.queue.some(q => !q.used); }));
+  await play(true); const c1 = (await save()).coins;
+  ok('al ganar se ofrece monedas x2', await p.evaluate(() => document.getElementById('r_ad').style.display !== 'none'));
+  await tap('#r_ad'); await sleep(3800); ok('monedas x2 tras el vídeo', (await save()).coins > c1); await closeModals();
+  // ---- copia de seguridad
+  await p.evaluate(() => RS._dbg.show('settings')); await sleep(400); await tap('#s_backup'); await sleep(500);
+  const code = await p.evaluate(() => document.getElementById('dlg_in').value); ok('código de copia generado', /^RS1:/.test(code) && code.length > 100);
+  await tap('#dlg_no'); await sleep(200);
+  // ---- calidad gráfica y modo eco
+  await p.evaluate(() => { const s = document.getElementById('s_eco'); s.value = '1'; s.dispatchEvent(new Event('change')); const q = document.getElementById('s_gfx'); q.value = 'low'; q.dispatchEvent(new Event('change')); RS._dbg.startLevel(2, 3, true, {}); }); await sleep(3000);
+  ok('modo eco: 30 fps y resolución 1x', await p.evaluate(() => RS._dbg.game.gx.fps === 30 && RS._dbg.game.dpr === 1));
+  await p.evaluate(() => { RS.save.eco = false; RS.save.gfx = 'high'; });
+  // ---- evento de verano
+  await p.evaluate(() => { document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show')); RS.save.unlockAll = true; RS._dbg.startEvent('ver', 10, true, {}); }); await sleep(3200);
+  ok('Verano Pirata 10 con Capitán Surfero', await p.evaluate(() => RS._dbg.game.phys.racs.some(r => r.boss && r.bi === 20))); await sh('26_summer');
+  const ch0 = (await save()).chests.length; await play(true); ok('verano da cofre', (await save()).chests.length > ch0); await closeModals(); await p.evaluate(() => { RS.save.unlockAll = false; });
   // ---- un nivel de cada mundo (1, 10 y jefe) sin errores
   const e0 = errs.length;
   for (let w = 1; w <= 18; w++) for (const n of [1, 10, 20]) {

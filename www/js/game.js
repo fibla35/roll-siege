@@ -5,6 +5,16 @@
   RS.vib = function (ms) { try { if (RS.save && RS.save.vib !== false && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };
   function stat(self, k, v) { if (self.o.onStat) self.o.onStat(k, v); }
 
+  // calidad gráfica (Alta/Media/Baja) y Modo Eco: resolución, partículas, clima, nubes, brillos y fotogramas
+  RS.gfx = function () {
+    var S = RS.save || {}, q = S.gfx || RS.gfxAuto(), eco = !!S.eco;
+    return { q: q, eco: eco, dpr: eco ? 1 : q === 'high' ? 2 : q === 'med' ? 1.5 : 1, wx: eco ? 0.35 : q === 'high' ? 1 : q === 'med' ? 0.7 : 0.4,
+      parts: eco || q === 'low' ? 70 : q === 'med' ? 160 : 400, clouds: eco || q === 'low' ? 2 : q === 'med' ? 4 : 6, glow: q === 'high' && !eco, fps: eco ? 30 : 60, mid: !(q === 'low' && eco) };
+  };
+  RS.gfxAuto = function () {
+    var mem = navigator.deviceMemory || 4, cores = navigator.hardwareConcurrency || 4;
+    return mem <= 3 || cores <= 4 ? 'low' : mem >= 8 && cores >= 8 ? 'high' : 'med';
+  };
   RS.drawSp = function (ctx, sheet, idx, x, y, w, h, ang, flip, alpha) {
     var im = RS.img[sheet], r = RS.atlas[sheet] && RS.atlas[sheet][idx];
     if (!im || !r) return;
@@ -176,12 +186,13 @@
     this.defense = !!this.o.defense; if (this.defense) { this.state = 'dwait'; this.dT = -1.5; this.dShots = 3; this.intercepts = 2; }
     this.aim = null; this.power = 0; this.angle = level.mortar ? 1.0 : 0.6; this.recoil = 0; this.fireAnim = 0; this.flightT = 0; this.settleT = 0;
     this.cannonX = 0; this.clouds = []; this.t = 0; this.paused = false; this.ended = false;
-    for (var i = 0; i < 6; i++) this.clouds.push({ i: i % 8, x: Math.random() * 60 - 10, y: 9 + Math.random() * 6, v: 0.2 + Math.random() * 0.4, s: 2 + Math.random() * 2 });
+    for (var i = 0, nc = RS.gfx().clouds; i < nc; i++) this.clouds.push({ i: i % 8, x: Math.random() * 60 - 10, y: 9 + Math.random() * 6, v: 0.2 + Math.random() * 0.4, s: 2 + Math.random() * 2 });
     this.uz = 1; this.ptrs = {};
     var top = 3; (level.pieces || []).forEach(function (p) { var a = RS.pieceAABB(p); if (a.y1 > top) top = a.y1; }); (level.terrain || []).forEach(function (t) { if (t.top + 1 > top) top = t.top + 1; }); this.topY = top;
     this.resize(); this.camHome(true); this.intro = 0;
     this.bind(); this.last = performance.now(); this.acc = 0; this.initWeather();
-    var self = this; this.raf = requestAnimationFrame(function f(t) { if (self.dead) return; self.frame(t); self.raf = requestAnimationFrame(f); });
+    var self = this; this.gx = RS.gfx(); this.lastDraw = 0;
+    this.raf = requestAnimationFrame(function f(t) { if (self.dead) return; if (self.gx.fps < 60 && t - self.lastDraw < 1000 / self.gx.fps - 2) { self.raf = requestAnimationFrame(f); return; } self.lastDraw = t; self.frame(t); self.raf = requestAnimationFrame(f); });
   }
   RS.Game = Game;
 
@@ -199,7 +210,7 @@
   Game.prototype.initWeather = function () {
     var k = this.level.weather; this.wx = null; if (!k || !WXDEF[k] || RS.save.fx === false) return;
     var D = WXDEF[k], ps = [];
-    for (var i = 0; i < D.n; i++) ps.push(this.newDrop(k, true));
+    for (var i = 0, nn = Math.max(4, Math.round(D.n * RS.gfx().wx)); i < nn; i++) ps.push(this.newDrop(k, true));
     this.wx = { k: k, D: D, ps: ps, flash: 0, nextFlash: 4 + Math.random() * 6 };
     if (D.snd && RS.Audio.amb) RS.Audio.amb(D.snd);
   };
@@ -238,14 +249,14 @@
         var a = glow ? 0.55 + 0.45 * Math.sin(p.ph * 4) : 1;
         ctx.globalAlpha = a; ctx.fillStyle = p.c || w.D.col;
         if (w.k === 'leaves' || w.k === 'petals' || w.k === 'confetti') { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); if (w.k === 'confetti') ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); else { ctx.beginPath(); ctx.ellipse(0, 0, p.s, p.s * 0.5, 0, 0, 7); ctx.fill(); } ctx.restore(); }
-        else { if (glow) { ctx.shadowColor = p.c; ctx.shadowBlur = 12 * (window.devicePixelRatio > 1 ? 2 : 1); } ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, 7); ctx.fill(); ctx.shadowBlur = 0; }
+        else { if (glow) { ctx.shadowColor = p.c; ctx.shadowBlur = RS.gfx().glow ? 12 * (window.devicePixelRatio > 1 ? 2 : 1) : 0; } ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, 7); ctx.fill(); ctx.shadowBlur = 0; }
       });
     }
     ctx.restore();
   };
 
   Game.prototype.resize = function () {
-    var d = Math.min(2, window.devicePixelRatio || 1);
+    var d = Math.min(RS.gfx().dpr, window.devicePixelRatio || 1);
     this.dpr = d; this.cv.width = Math.round(RS.stage.w * d); this.cv.height = Math.round(RS.stage.h * d);
     this.W = this.cv.width; this.H = this.cv.height;
   };
@@ -349,7 +360,7 @@
     this.lastArm = q.arm; this.combo = 0; this.comboPts = 0; this.impactZoom = false;
     this.shotKO0 = this.phys.racs.filter(function (r) { return r.ko; }).length; this.shotBroken0 = this.phys.destroyed; RS.vib(30); stat(this, 'shot', q.arm);
     q.used = true; this.state = 'flight'; this.flightT = 0; this.recoil = 1; this.shake = 10 * this.dpr;
-    RS.Audio.sfx('cannon', 0.9);
+    (this.level.mortar && RS.Audio.synth ? RS.Audio.synth('mortar', 0.9) : RS.Audio.sfx('cannon', 0.9));
     this.parts.push({ fx: 'pow', fr: [6, 7, 8, 9, 10, 11], x: g.muzzle.x + g.dir.x * 0.9, y: g.muzzle.y + g.dir.y * 0.9, w: 2.4, life: 0.45, t: 0, ang: -ang });
     this.parts.push({ fx: 'pow', fr: [12, 13, 14, 15, 16, 17], x: g.muzzle.x, y: g.muzzle.y + 0.3, w: 2.2, life: 1.1, t: 0, vy: 0.6 });
     this.power = 0; this.overT = 0;
@@ -375,6 +386,7 @@
 
   Game.prototype.update = function (dt) {
     this.t += dt; var P = this.phys; this.updateWeather(dt);
+    var cap = (this.gx || RS.gfx()).parts; if (this.parts && this.parts.length > cap) this.parts.splice(0, this.parts.length - cap);
     if (this.state !== 'end' || P.time < 60) P.step(dt);
     this.handleEvents(P.drain());
     if (this.aim && this.power >= 0.999) this.overT = (this.overT || 0) + dt; else this.overT = 0;
@@ -440,6 +452,12 @@
     if (this.o.onQueue) this.o.onQueue();
   };
   Game.prototype.won = function () { var P = this.phys; return P.racs.length ? P.racsLeft() === 0 : P.gemsLeft() === 0; };
+  // vídeo con premio tras perder: un armadillo más y se sigue jugando
+  Game.prototype.revive = function () {
+    this.queue.push({ arm: this.lastArm != null ? this.lastArm : 0, used: false, freed: true });
+    this.phys.racs.forEach(function (r) { r.win = false; }); this.ended = false; this.result = null; this.sel = this.queue.length - 1; this.state = 'aim'; this.slowT = 0; this.big = { txt: '🎁 +1 ARMADILLO', t: 0, life: 1.6 };
+    if (this.o.onQueue) this.o.onQueue();
+  };
   Game.prototype.afterShot = function () {
     var P = this.phys;
     var msgs = [];
@@ -455,11 +473,11 @@
       if (broke >= 8) { P.score += 800; msgs.push('¡DERRUMBE! ' + broke + ' piezas  +800'); gift = true; stat(this, 'collapse', broke); }
       if (gift && !this.giftArm && !this.won()) {
         this.giftArm = true; this.queue.push({ arm: this.lastArm != null ? this.lastArm : 0, used: false, freed: true });
-        msgs.push('🎁 +1 ARMADILLO'); if (this.o.onQueue) this.o.onQueue(); RS.vib(60);
+        msgs.push('🎁 +1 ARMADILLO'); if (this.o.onQueue) this.o.onQueue(); RS.vib(60); if (RS.Audio.synth) setTimeout(function () { RS.Audio.synth('gift'); }, 450);
       }
       this.shotKO0 = null;
     }
-    if (msgs.length) { this.big = { txt: msgs.join('\n'), t: 0, life: 1.4 + msgs.length * 0.4 }; RS.Audio.sfx('star', 0.8); }
+    if (msgs.length) { this.big = { txt: msgs.join('\n'), t: 0, life: 1.4 + msgs.length * 0.4 }; if (msgs.length > 1 || /K\.O\.|DERRUMBE/.test(msgs[0])) { if (RS.Audio.synth) RS.Audio.synth('fanfare', 0.8); } else RS.Audio.sfx('star', 0.8); }
     this.combo = 0;
     if (this.defense) {
       if (P.gemsLeft() === 0) return this.finish(false);
@@ -574,7 +592,7 @@
     this.clouds.forEach(function (cl) { RS.drawSp(ctx, 'clouds', cl.i, (cl.x - c.x * 0.3) * s * 0.6 + W / 2, self.sy(cl.y) * 0.85, cl.s * s * 1.4, cl.s * s * 1.4 / RS.spAspect('clouds', cl.i), 0, false, 0.9); });
     // capa media (parallax)
     var mid = RS.img['bg_' + this.bg + '_mid'];
-    if (mid) {
+    if (mid && (this.gx || RS.gfx()).mid) {
       var mh = 6.5 * s, mw = mid.width * mh / mid.height, ox = -((c.x * 0.55 * s) % mw) - mw;
       for (var x = ox; x < W + mw; x += mw - 1) ctx.drawImage(mid, x, this.sy(0) - mh + 0.4 * s, mw, mh);
     }

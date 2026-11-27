@@ -48,6 +48,23 @@
     src.connect(f); f.connect(g); g.connect(c.destination); src.start();
     A._amb = { src: src, g: g, lfo: lfo };
   };
+  // efectos sintetizados: mortero (golpe grave), fanfarria (jugadas maestras) y destello (regalo)
+  A.synth = function (kind, v) {
+    if (!A.ctx || A.vol.sfx <= 0) return; var c = A.ctx, t = c.currentTime, vol = (v == null ? 1 : v) * A.vol.sfx;
+    if (c.state === 'suspended') c.resume();
+    function osc(type, f0, f1, t0, dur, g0) { var o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t + t0); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + t0 + dur);
+      g.gain.setValueAtTime(0.0001, t + t0); g.gain.exponentialRampToValueAtTime(g0 * vol, t + t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + t0 + dur); o.connect(g); g.connect(c.destination); o.start(t + t0); o.stop(t + t0 + dur + 0.05); }
+    if (kind === 'mortar') {
+      osc('sine', 140, 38, 0, 0.45, 0.9); osc('triangle', 90, 30, 0, 0.3, 0.5);
+      var n = c.sampleRate * 0.25, b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0); for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      var s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); s.buffer = b; f.type = 'lowpass'; f.frequency.value = 900; g.gain.value = 0.5 * vol; s.connect(f); f.connect(g); g.connect(c.destination); s.start(t);
+    } else if (kind === 'fanfare') {
+      [523, 659, 784, 1047].forEach(function (f, i) { osc('square', f, 0, i * 0.09, 0.16, 0.12); osc('triangle', f / 2, 0, i * 0.09, 0.18, 0.15); });
+      osc('square', 1047, 0, 0.38, 0.4, 0.12); osc('triangle', 784, 0, 0.38, 0.4, 0.12);
+    } else if (kind === 'gift') {
+      [880, 1175, 1568, 2093].forEach(function (f, i) { osc('sine', f, 0, i * 0.06, 0.25, 0.18); });
+    }
+  };
   A.setVol = function (k, v) {
     A.vol[k] = v;
     if (k === 'music' && A.music) { A.music.volume = v; if (v > 0 && A.music.paused) A.music.play().catch(function () {}); if (v === 0) A.music.pause(); }

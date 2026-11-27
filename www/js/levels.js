@@ -209,7 +209,7 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
   // nivel de evento: fortaleza de dificultad media con los mapaches y el decorado del evento
   RS.makeEventLevel = function (ev, n) {
     var E = RS.EVENTS[ev], L = RS.makeLevel(E.baseW, Math.min(19, n * 2 - 1), 40 + n);
-    var pool = RS.RACS.map(function (r, i) { return i; }).filter(function (i) { return RS.RACS[i].event === ev; });
+    var pool = RS.RACS.map(function (r, i) { return i; }).filter(function (i) { return E.racs ? E.racs.indexOf(RS.RACS[i].id) >= 0 : RS.RACS[i].event === ev; });
     L.racs.forEach(function (r, i) {
       if (r.boss) { r.boss = false; r.t = pool[i % pool.length]; return; }
       var T0 = RS.RACS[r.t], fit = pool.filter(function (k) { return RS.RACS[k].h <= T0.h + 0.03 && RS.RACS[k].w <= T0.w + 0.03; });

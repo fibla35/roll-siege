@@ -39,7 +39,7 @@
   RS.Builder = Builder;
   Builder.prototype.destroy = function () { this.dead = true; cancelAnimationFrame(this.raf); this.cv.removeEventListener('pointerdown', this._d); removeEventListener('pointermove', this._m); removeEventListener('pointerup', this._u); removeEventListener('pointercancel', this._u); this.cv.removeEventListener('wheel', this._w); removeEventListener('resize', this._r); };
   Builder.prototype.resize = function () {
-    var d = Math.min(2, devicePixelRatio || 1); this.dpr = d; this.cv.width = RS.stage.w * d; this.cv.height = RS.stage.h * d; this.W = this.cv.width; this.H = this.cv.height;
+    var d = Math.min(RS.gfx ? RS.gfx().dpr : 2, devicePixelRatio || 1); this.dpr = d; this.cv.width = RS.stage.w * d; this.cv.height = RS.stage.h * d; this.W = this.cv.width; this.H = this.cv.height;
     var bar = document.querySelector('#build .bbar'), bt = document.querySelector('#build .btop');
     this.top = bt && bt.offsetHeight ? (bt.offsetHeight + 4) * d : this.H * 0.12; this.bot = bar && bar.offsetHeight ? (bar.offsetHeight + 6) * d : this.H * 0.27;
     this.s0 = Math.min((this.W * 0.97) / (GW + 4.5), (this.H - this.top - this.bot) / (GH + 0.3));

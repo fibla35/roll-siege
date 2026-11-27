@@ -143,6 +143,7 @@ var RS = typeof RS !== 'undefined' ? RS : {};
   RS.EVENTS = {
     hal: { id: 'hal', name: 'Noche de Calabazas', from: [10, 1], to: [11, 10], bg: 'hal', deco: 'deco_hal', music: 'RSM16', baseW: 7, weather: 'fireflies', tod: 'night', skins: [6, 7, 8, 9, 10, 11], color: '#e67e22', icon: '🎃', ico: 'ico_hal', boss: 18 },
     nav: { id: 'nav', name: 'Navidad Bandida', from: [12, 1], to: [1, 15], bg: 'nav', deco: 'deco_nav', music: 'RSM05', baseW: 8, weather: 'snow', tod: 'dusk', skins: [12, 13, 14, 15, 16, 17], color: '#c0392b', icon: '🎄', ico: 'ico_nav', boss: 19 },
+    ver: { id: 'ver', name: 'Verano Pirata', from: [7, 1], to: [8, 31], bg: 'w13', deco: 'deco_pirata', music: 'RSM07', baseW: 9, weather: 'sparkles', tod: null, skins: [], chests: true, racs: ['grumete', 'arponero', 'buzo', 'loro'], color: '#1fa3c9', icon: '🏄', ico: 'ico_events', boss: 20 },
   };
   RS.EVENT_LEVELS = 10;
   RS.eventActive = function (id, d) {
