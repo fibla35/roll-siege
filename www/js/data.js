@@ -30,6 +30,38 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     { id: 'tnt', name: 'Caja de TNT', w: 1, h: 1, kind: 'box', cat: 'boom', mat: 0, sprite: ['items', 1], explosive: 1.5, cost: 3 },
   ];
   RS.MAX_TRAPS = 5;
+  RS.SHAPES.push({ id: 'jaula', name: 'Jaula', w: 1, h: 1, kind: 'box', cat: 'cage', mat: 0, cage: true, cost: 0 });
+  RS.SHAPE_IDX = {}; RS.SHAPES.forEach(function (s, i) { RS.SHAPE_IDX[s.id] = i; });
+
+  // Mapaches bandidos. act = lo que hacen entre disparo y disparo. sheet/row = dónde irá su sprite (hojas RS90-95)
+  RS.RACS = [
+    { id: 'raso', name: 'Bandido raso', hp: 34, w: 0.7, h: 0.9, dens: 0.9, world: 1, col: '#c0392b', hat: 'band' },
+    { id: 'casco', name: 'Bandido con casco', hp: 80, w: 0.7, h: 0.95, dens: 1.1, world: 1, col: '#8a8f96', hat: 'pot' },
+    { id: 'gordo', name: 'Gordo', hp: 60, w: 0.95, h: 1.0, dens: 2.4, world: 1, col: '#d9822b', hat: 'none' },
+    { id: 'hondero', name: 'Hondero', hp: 34, w: 0.7, h: 0.9, dens: 0.9, world: 2, col: '#2e8b57', hat: 'beanie', act: 'sling', desc: 'Te lanza una piña: tu siguiente disparo sale con menos pólvora.' },
+    { id: 'manitas', name: 'Manitas', hp: 40, w: 0.7, h: 0.9, dens: 1, world: 3, col: '#2e6fd1', hat: 'goggles', act: 'repair', desc: 'Repara la pieza más dañada de la fortaleza.' },
+    { id: 'ladron', name: 'Ladrón ágil', hp: 30, w: 0.65, h: 0.85, dens: 0.8, world: 5, col: '#7d3cb5', hat: 'hood', act: 'steal', desc: 'Te roba 500 puntos en cada turno.' },
+    { id: 'escudero', name: 'Escudero', hp: 60, w: 0.75, h: 0.9, dens: 1.2, world: 4, col: '#a0522d', hat: 'horns', shieldFront: true, desc: 'Su escudo aguanta los golpes de frente.' },
+    { id: 'bombardero', name: 'Bombardero', hp: 40, w: 0.7, h: 0.9, dens: 1, world: 4, col: '#444', hat: 'pilot', act: 'bomb', desc: 'Lanza una bomba al cañón: tu siguiente disparo sale torcido.' },
+    { id: 'vigia', name: 'Vigía', hp: 34, w: 0.7, h: 0.9, dens: 0.9, world: 3, col: '#1f4e79', hat: 'captain', act: 'alarm', desc: 'Da la alarma: los mapaches se ponen casco.' },
+    { id: 'ninja', name: 'Ninja', hp: 40, w: 0.68, h: 0.88, dens: 0.9, world: 99, col: '#222', hat: 'band', clan: 'japon' },
+    { id: 'vaquero', name: 'Vaquero', hp: 45, w: 0.7, h: 0.92, dens: 1, world: 99, col: '#8b5a2b', hat: 'cowboy', clan: 'oeste' },
+    { id: 'azteca', name: 'Guerrero azteca', hp: 50, w: 0.72, h: 0.95, dens: 1.1, world: 99, col: '#1f9e7a', hat: 'feathers', clan: 'azteca' },
+    { id: 'pirata', name: 'Pirata', hp: 45, w: 0.7, h: 0.92, dens: 1, world: 5, col: '#111', hat: 'pirate' },
+    { id: 'minero', name: 'Minero', hp: 70, w: 0.72, h: 0.92, dens: 1.2, world: 9, col: '#e0b030', hat: 'miner' },
+    { id: 'brujo', name: 'Brujo del pantano', hp: 36, w: 0.7, h: 0.95, dens: 0.9, world: 7, col: '#3d7a3a', hat: 'witch', act: 'ward', desc: 'Protege a otro mapache con una burbuja mágica.' },
+    { id: 'payaso', name: 'Payaso de feria', hp: 36, w: 0.7, h: 0.9, dens: 0.9, world: 11, col: '#e84393', hat: 'clown', act: 'pie', desc: 'Te tira una tarta a la pantalla.' },
+    { id: 'aviador', name: 'Aviador', hp: 30, w: 0.7, h: 0.9, dens: 0.8, world: 8, col: '#b5651d', hat: 'pilot', fly: true, desc: 'Vuela con su hélice: cuesta acertarle.' },
+    { id: 'guardia', name: 'Guardia real', hp: 110, w: 0.74, h: 1.0, dens: 1.4, world: 12, col: '#d4af37', hat: 'royal' },
+  ];
+  RS.RAC_IDX = {}; RS.RACS.forEach(function (r, i) { RS.RAC_IDX[r.id] = i; });
+  RS.BOSSES = [
+    { name: 'Capitán Garra', act: 'repairAll' }, { name: 'Sultán Rapiña', act: 'sling' }, { name: 'Barbaescarcha', act: 'freezeCannon' },
+    { name: 'Magma Mapachón', act: 'bomb' }, { name: 'Almirante Bigotes', act: 'bomb' }, { name: 'Barón Neón', act: 'wardAll' },
+    { name: 'Bruja Ciénaga', act: 'wardAll' }, { name: 'Comandante Zepelín', act: 'bomb' }, { name: 'Capataz Cristal', act: 'repairAll' },
+    { name: 'Granjero Cosecha', act: 'sling' }, { name: 'Maestro de Pista', act: 'pie' }, { name: 'Rey Mapache', act: 'repairAll' },
+  ];
+  RS.WIND = { 3: 1.2, 8: 2.6, 10: 1.6, 11: 0.8 }; // viento por mundo (m/s² hacia la izquierda o la derecha)
   RS.SHAPE_IDX = {}; RS.SHAPES.forEach(function (s, i) { RS.SHAPE_IDX[s.id] = i; });
 
   // hp: vida · dens: densidad · cost: puntos de construcción · luz/voladizo: reglas del constructor
@@ -66,6 +98,13 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     { id: 4, name: 'Volcán Ceniza', bg: 'w4', music: 'RSM06', mats: [3, 1, 5, 3, 0], gemFrom: 3 },
     { id: 5, name: 'Puerto Bandido', bg: 'w5', music: 'RSM07', mats: [0, 0, 3, 1, 4], gemFrom: 4 },
     { id: 6, name: 'Rapiñópolis', bg: 'w6', music: 'RSM08', mats: [4, 3, 5, 1, 4, 0], gemFrom: 5 },
+    // nuevo continente (mapa 2)
+    { id: 7, name: 'Pantano Brumoso', bg: 'w7', music: 'RSM16', mats: [0, 0, 1, 3, 0], gemFrom: 2, map: 2 },
+    { id: 8, name: 'Islas Flotantes', bg: 'w8', music: 'RSM19', mats: [4, 0, 1, 3, 4], gemFrom: 1, map: 2 },
+    { id: 9, name: 'Minas de Cristal', bg: 'w9', music: 'RSM17', mats: [4, 4, 1, 5, 3], gemFrom: 4, map: 2 },
+    { id: 10, name: 'Otoño Carmesí', bg: 'w10', music: 'RSM15', mats: [0, 0, 1, 3, 2], gemFrom: 0, map: 2 },
+    { id: 11, name: 'Feria Encantada', bg: 'w11', music: 'RSM20', mats: [0, 3, 4, 0, 1, 2], gemFrom: 3, map: 2 },
+    { id: 12, name: 'Reino Dorado', bg: 'w12', music: 'RSM18', mats: [5, 3, 4, 5, 1, 3], gemFrom: 5, map: 2 },
   ];
   RS.LEVELS_PER_WORLD = 20;
 

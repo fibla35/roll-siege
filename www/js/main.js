@@ -62,7 +62,7 @@
   function totalStars() { return Object.keys(S.stars).reduce(function (a, k) { return a + S.stars[k]; }, 0); }
   function worldOpen(w) { if (S.unlockAll || w === 1) return true; return !!S.stars[(w - 1) + '-20']; }
   function levelOpen(w, n) { if (S.unlockAll) return true; if (!worldOpen(w)) return false; return n === 1 || !!S.stars[w + '-' + (n - 1)]; }
-  function maxWorld() { var m = 1; for (var w = 2; w <= 6; w++) if (worldOpen(w)) m = w; return m; }
+  function maxWorld() { var m = 1; for (var w = 2; w <= RS.WORLDS.length; w++) if (worldOpen(w)) m = w; return m; }
   function armOpen(i) { var a = RS.ARMS[i]; if (S.unlockAll) return true; if (a.rare === 3) return !!S.stars['6-20']; return a.world <= maxWorld(); }
   function matOpen(m) { return S.unlockAll || RS.MATS[m].lvl <= maxWorld(); }
 
@@ -96,20 +96,27 @@
   };
 
   // ---------- mapa ----------
-  var WPOS = [[24.4, 34], [39.4, 37.5], [53.3, 36], [66.7, 33], [79.4, 41], [91, 29]];
+  var MAPS = { 1: { img: 'map.webp', pos: [[24.4, 34], [39.4, 37.5], [53.3, 36], [66.7, 33], [79.4, 41], [91, 29]] },
+    2: { img: 'map2.webp', pos: [[14, 53], [26, 36], [41.7, 42], [60, 44.4], [73.6, 34.7], [87.9, 24.4]] } };
+  var mapPage = 1;
   SCREENS.map = function () {
     RS.Audio.play('RSM19');
     $('m_stars').textContent = totalStars();
+    var M = MAPS[mapPage]; $('map').style.backgroundImage = 'url(img/' + M.img + ')';
     var box = $('worldnodes'); box.innerHTML = '';
     var W = RS.stage.w, H = RS.stage.h, sc = Math.max(W / 1600, H / 1066), ox = (W - 1600 * sc) / 2, oy = (H - 1066 * sc) / 2;
-    RS.WORLDS.forEach(function (w, i) {
+    RS.WORLDS.filter(function (w) { return (w.map || 1) === mapPage; }).forEach(function (w, i) {
       var open = worldOpen(w.id), st = 0; for (var n = 1; n <= 20; n++) st += S.stars[w.id + '-' + n] || 0;
       var b = document.createElement('button'); b.className = 'wnode' + (open ? '' : ' locked');
-      b.style.left = (ox + WPOS[i][0] / 100 * 1600 * sc) + 'px'; b.style.top = (oy + WPOS[i][1] / 100 * 1066 * sc + 40) + 'px';
+      b.style.left = (ox + M.pos[i][0] / 100 * 1600 * sc) + 'px'; b.style.top = (oy + M.pos[i][1] / 100 * 1066 * sc + 40) + 'px';
       b.innerHTML = '<div class="num">' + (open ? w.id : '🔒') + '</div><div>' + w.name + '</div><div>★ ' + st + '/60</div>';
       b.onclick = function () { if (!open) return toast('Vence al jefe del mundo ' + (w.id - 1)); RS.Audio.sfx('click'); curWorld = w.id; show('levels'); };
       box.appendChild(b);
     });
+    var arrow = document.createElement('button'); arrow.className = 'maparrow ' + (mapPage === 1 ? 'right' : 'left');
+    arrow.innerHTML = mapPage === 1 ? '<span>Nuevo continente</span> ❯' : '❮ <span>Primer continente</span>';
+    arrow.onclick = function () { mapPage = mapPage === 1 ? 2 : 1; RS.Audio.sfx('whoosh'); SCREENS.map(); };
+    box.appendChild(arrow);
   };
 
   // ---------- niveles ----------
@@ -122,7 +129,7 @@
       var open = levelOpen(curWorld, n), st = S.stars[curWorld + '-' + n] || 0, b = document.createElement('button');
       b.className = 'lv' + (n === 20 ? ' boss' : '') + (open ? '' : ' locked');
       var stars = ''; for (var i = 0; i < 3; i++) stars += '<img src="img/ui/star' + (i < st ? 1 : 0) + '.webp">';
-      b.innerHTML = (n === 20 ? '☠' : n) + (open ? '<div class="st">' + stars + '</div>' : '');
+      b.innerHTML = (n === 20 ? '☠' : (n % 5 === 0 && canDefend()) ? '⚔' : n) + (open ? '<div class="st">' + stars + '</div>' : '');
       b.onclick = function () { if (!open) return toast('Supera el nivel anterior'); RS.Audio.sfx('click'); startLevel(curWorld, n); };
       g.appendChild(b);
     })(n);
@@ -137,14 +144,18 @@
       $('hud_lv').textContent = ctx.label;
       if (game) game.destroy();
       game = new RS.Game(cv, level, {
-        style: ctx.style, clan: S.clan, bg: bgKey, cannonLvl: S.cannon,
+        style: ctx.style, clan: S.clan, bg: bgKey, cannonLvl: S.cannon, defense: !!ctx.defense,
         onQueue: drawQueue, onTick: hudTick, onEnd: onEnd,
         onAbility: function () { $('hint').style.opacity = 0; },
+        onDebuff: function (t) { var el = $('debuff'); if (!t) $('splat').classList.remove('show'); if (t) { el.textContent = t; el.classList.add('show'); } else el.classList.remove('show'); },
+        onSplat: function (on) { var el = $('splat'); if (on) { el.innerHTML = ''; for (var i = 0; i < 5; i++) { var sp = document.createElement('i'); sp.style.left = (10 + Math.random() * 70) + '%'; sp.style.top = (15 + Math.random() * 55) + '%'; sp.style.transform = 'scale(' + (0.7 + Math.random() * 0.8) + ') rotate(' + Math.random() * 360 + 'deg)'; el.appendChild(sp); } el.classList.add('show'); toast('🥧 ¡Tartazo! Se limpia al disparar'); } else el.classList.remove('show'); },
         onAim: function () { clearTimeout(armTip.t); $('armtip').classList.remove('show'); $('hint').style.opacity = 0; },
       });
       drawQueue();
       $('hint').style.opacity = S.seenHint < 3 ? 1 : 0;
       if (S.seenHint < 3) { S.seenHint++; persist(); setTimeout(function () { $('hint').style.opacity = 0; }, 6000); }
+      $('debuff').classList.remove('show'); $('splat').classList.remove('show');
+      if (level.racs && level.racs.length && !S.seenRacs) { S.seenRacs = 1; persist(); setTimeout(function () { toast('🦝 ¡Derriba a todos los mapaches! Las gemas son premio extra'); }, 1800); }
       RS.Audio.play(ctx.music);
     });
   }
@@ -158,8 +169,16 @@
     return n % 3 === 1 ? RS.WORLDS[w - 1].music : DNB_POOL[(w * 5 + n) % DNB_POOL.length];
   }
   RS.levelMusic = levelMusic;
+  function canDefend() { return S.layout && S.stable && S.layout.gems && S.layout.gems.length && S.layout.pieces.length; }
   function startLevel(w, n) {
-    var lvl = RS.makeLevel(w, n), W = RS.WORLDS[w - 1];
+    var W = RS.WORLDS[w - 1];
+    if (n % 5 === 0 && n < 20 && canDefend()) {
+      var dl = ownLevel(); dl.arms = []; dl.w = w; dl.n = n; dl.racs = [];
+      startGame(dl, { kind: 'camp', w: w, n: n, style: S.clan, bg: W.bg, music: 'RSM09', label: w + '-' + n + ' CONTRAATAQUE', defense: true });
+      setTimeout(function () { toast('⚔ ¡Contraataque! Los mapaches atacan tu fortaleza. Lanzan 3 rocas: tócalas en el aire para desviarlas (2 veces)'); }, 600);
+      return;
+    }
+    var lvl = RS.makeLevel(w, n);
     startGame(lvl, { kind: 'camp', w: w, n: n, style: 'bandido', bg: W.bg, music: levelMusic(w, n), label: w + '-' + n + (n === 20 ? ' JEFE' : '') });
   }
   // al elegir armadillo (o al tocarle el turno) se explica qué hace
@@ -195,6 +214,7 @@
     if (!game) return;
     var sc = game.phys.score; if (sc !== lastScore) { lastScore = sc; $('hud_score').textContent = sc.toLocaleString('es'); }
     $('hud_gems').textContent = game.phys.gemsLeft();
+    var nr = game.phys.racs.length; $('hud_racp').style.display = nr ? '' : 'none'; if (nr) $('hud_racs').textContent = game.phys.racsLeft();
   }
   $('pausebtn').onclick = function () { if (!game || game.ended) return; game.paused = true; RS.Audio.sfx('click'); syncAudioBtns(); $('pause').classList.add('show'); };
   $('p_resume').onclick = function () { $('pause').classList.remove('show'); if (game) game.paused = false; };
@@ -204,7 +224,7 @@
   $('p_mus').onclick = function () { S.vol.music = S.vol.music ? 0 : 0.6; RS.Audio.setVol('music', S.vol.music); persist(); syncAudioBtns(); };
   $('p_next').onclick = function () { RS.Audio.init(); nextTrack(); };
   $('p_snd').onclick = function () { S.vol.sfx = S.vol.sfx ? 0 : 0.8; RS.Audio.setVol('sfx', S.vol.sfx); persist(); syncAudioBtns(); };
-  function retry() { var c = ctxGame; startGame(c.kind === 'camp' ? RS.makeLevel(c.w, c.n) : c.kind === 'league' ? rivalLevel() : ownLevel(), c); }
+  function retry() { var c = ctxGame; if (c.defense) return startLevel(c.w, c.n); startGame(c.kind === 'camp' ? RS.makeLevel(c.w, c.n) : c.kind === 'league' ? rivalLevel() : ownLevel(), c); }
   function back() { var k = ctxGame && ctxGame.kind; show(k === 'camp' ? 'levels' : k === 'league' ? 'league' : 'build'); }
 
   function onEnd(r) {
@@ -214,6 +234,10 @@
     var st = ''; for (var i = 0; i < 3; i++) st += '<img src="img/ui/star' + (i < r.stars ? 1 : 0) + '.webp">';
     $('r_stars').innerHTML = r.win ? st : '';
     txt = 'Puntos <b>' + r.score.toLocaleString('es') + '</b>';
+    var defTxt = '';
+    if (c.defense) defTxt = txt = (r.win ? '¡Tu fortaleza resistió!' : 'Los mapaches se llevaron todas tus gemas') + '<br>💎 Gemas salvadas: ' + (r.gems - r.gemsGot) + '/' + r.gems + '<br>Puntos <b>' + r.score.toLocaleString('es') + '</b>';
+    else if (r.racs) txt += '<br>🦝 Mapaches derribados: ' + r.ko + '/' + r.racs;
+    if (r.gems) txt += ' · 💎 Gemas: ' + r.gemsGot + '/' + r.gems;
     if (r.bonus) txt += '<br>Bonus armadillos sin usar: +' + r.bonus.toLocaleString('es');
     txt += '<br>Destrucción: ' + Math.round(r.destr * 100) + '%';
     $('r_next').style.display = 'none';
@@ -223,9 +247,9 @@
         var prev = S.stars[k] || 0, coins = 20 + (r.stars - prev > 0 ? (r.stars - prev) * 15 : 0) + (c.n === 20 ? 150 : 0);
         S.stars[k] = Math.max(prev, r.stars); S.coins += coins; txt += '<br>+' + coins + ' monedas';
         if ((S.best[k] || 0) < r.score) { S.best[k] = r.score; if (prev) txt += '<br>¡Nuevo récord!'; }
-        if (c.n < 20 || c.w < 6) $('r_next').style.display = '';
-        if (c.n === 20 && c.w < 6) txt += '<br>¡Mundo ' + (c.w + 1) + ' desbloqueado!';
-      } else txt += '<br>Te quedaste sin armadillos. ¡Prueba otro orden!';
+        if (c.n < 20 || c.w < RS.WORLDS.length) $('r_next').style.display = '';
+        if (c.n === 20 && c.w < RS.WORLDS.length) txt += '<br>¡Mundo ' + (c.w + 1) + ' desbloqueado!';
+      } else txt += '<br>Te quedaste sin armadillos. ¡Prueba otro orden o rompe una jaula para tener uno más!';
     } else if (c.kind === 'league') {
       var d = r.win ? 25 + r.stars * 5 : -15;
       S.trophies = Math.max(0, S.trophies + d); txt += '<br>Trofeos ' + (d > 0 ? '+' : '') + d;
@@ -234,6 +258,7 @@
     } else {
       txt += '<br>' + (r.win ? 'Tu fortaleza ha caído: refuérzala.' : '¡Tu fortaleza ha resistido!');
     }
+    if (c.defense) txt = defTxt + (r.win ? '<br>¡Has defendido tu fortaleza! +' + (20 + r.stars * 15) + ' monedas' : '<br>Refuerza tu fortaleza en «Mi fortaleza» y vuelve a intentarlo.');
     persist();
     $('r_text').innerHTML = txt; $('result').classList.add('show');
   }

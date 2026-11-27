@@ -9,7 +9,7 @@ function settle(lvl, secs) {
   return { moved, broken, gems: P.gems.length - P.gemsLeft(), pieces: P.blocks.length, settled: P.settled() };
 }
 let bad = [], t0 = Date.now(), stats = { pieces: 0, gems: 0 };
-for (let w = 1; w <= 6; w++) for (let n = 1; n <= 20; n++) {
+for (let w = 1; w <= RS.WORLDS.length; w++) for (let n = 1; n <= 20; n++) {
   const lvl = RS.makeLevel(w, n);
   const r = settle(lvl, 5);
   stats.pieces += r.pieces; stats.gems += lvl.gems.length;

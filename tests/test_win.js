@@ -13,16 +13,16 @@ function simulate(level, shots, extra) {
       if (t > 90 && P.settled && P.settled()) break;
     }
     P.balls.forEach(function (u) { u.dead = true; P.dead.push(u.body); }); P.step(1 / 60); P.drain();
-    if (P.gemsLeft() === 0) return { win: true, gems: 0, score: P.score, used: k + 1 };
+    if (P.racs.length ? P.racsLeft() === 0 : P.gemsLeft() === 0) return { win: true, gems: 0, score: P.score, used: k + 1 };
   }
-  return { win: false, gems: P.gemsLeft(), score: P.score, used: all.length };
+  return { win: false, gems: P.racs.length ? P.racsLeft() : P.gemsLeft(), score: P.score, used: all.length };
 }
 var CANDS = [];
 [0.15, 0.35, 0.55, 0.75, 0.95].forEach(function (a) { for (var p = 0.45; p <= 1.001; p += 0.05) CANDS.push({ a: a, p: p }); });
 
 var sample = process.argv[2] === 'all' ? null : [1, 4, 8, 12, 16, 20];
 var res = [], t0 = Date.now();
-for (var w = 1; w <= 6; w++) for (var n = 1; n <= 20; n++) {
+for (var w = +(process.argv[3] || 1); w <= RS.WORLDS.length; w++) for (var n = 1; n <= 20; n++) {
   if (sample && sample.indexOf(n) < 0) continue;
   var L = RS.makeLevel(w, n), shots = [], best = null;
   for (var k = 0; k < L.arms.length; k++) {

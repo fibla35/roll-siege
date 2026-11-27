@@ -105,8 +105,37 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
 
 
     if (!B.gems.length) B.gem(x - 3, 0);
-    // demasiadas gemas: deja como máximo 1 + nivel/7 (máx. 4), salvo jefe
-    var maxG = boss ? 5 : Math.min(4, 1 + Math.floor(n / 7) + (w >= 3 ? 1 : 0));
+    // ---- mapaches: ocupan los huecos donde iban las gemas; quedan 1-2 gemas de premio ----
+    var R3 = rng(w * 4211 + n * 97 + (variant || 0) * 13), spots = B.gems.slice(), racs = [], cages = [];
+    for (var si = spots.length - 1; si > 0; si--) { var sj = Math.floor(R3() * (si + 1)), tmp = spots[si]; spots[si] = spots[sj]; spots[sj] = tmp; }
+    var pool = RS.RACS.map(function (r, i) { return i; }).filter(function (i) { var r = RS.RACS[i]; return r.world <= w && (r.world > 1 || true); });
+    var nRac = Math.min(spots.length, Math.max(1, Math.min(6, 1 + Math.floor(n / 4) + (w >= 4 ? 1 : 0))));
+    var cageAt = (n % 4 === 3 && spots.length > nRac) ? 1 : 0;
+    function spaceAbove(px, fy) {
+      var top = 99; B.pieces.forEach(function (q) { var a = RS.pieceAABB(q); if (px > a.x0 + 0.05 && px < a.x1 - 0.05 && a.y0 >= fy - 0.01 && a.y0 < top) top = a.y0; });
+      var side = 9; B.pieces.forEach(function (q) { var a = RS.pieceAABB(q); if (a.y1 > fy + 0.05 && a.y0 < fy + 0.9) { if (a.x1 <= px + 0.01) side = Math.min(side, (px - a.x1) * 2); else if (a.x0 >= px - 0.01) side = Math.min(side, (a.x0 - px) * 2); } });
+      return { h: top - fy, w: side };
+    }
+    var used = 0;
+    spots.forEach(function (g, k) {
+      var fy = g.y - 0.33, sp = spaceAbove(g.x, fy);
+      if (used < nRac) {
+        var fits = pool.filter(function (i) { var r = RS.RACS[i]; return r.h < sp.h - 0.06 && r.w < sp.w - 0.04; });
+        if (!fits.length) return;
+        // los básicos salen más; los especiales del mundo actual, de vez en cuando
+        var t = fits[Math.floor(R3() * fits.length)]; if (R3() < 0.45) t = fits.filter(function (i) { return i <= 2; })[0] !== undefined ? fits.filter(function (i) { return i <= 2; })[Math.floor(R3() * fits.filter(function (i) { return i <= 2; }).length)] : t;
+        racs.push({ x: g.x, y: fy, t: t }); g.used = true; used++;
+      } else if (cageAt && sp.h > 1.06 && sp.w > 1.05) {
+        cageAt = 0; g.used = true;
+        var avail0 = RS.ARMS.map(function (a, i) { return i; }).filter(function (i) { return RS.ARMS[i].world <= w && RS.ARMS[i].rare < 3; });
+        B.pieces.push({ s: RS.SHAPE_IDX.jaula, m: 0, x: g.x, y: fy + 0.5, rot: 0, arm: avail0[Math.floor(R3() * avail0.length)] });
+      }
+    });
+    B.gems = B.gems.filter(function (g) { return !g.used; });
+    if (boss) racs.push({ x: x + 0.2, y: 0, t: 0, boss: true, w: w, name: RS.BOSSES[(w - 1) % RS.BOSSES.length].name });
+    if (!racs.length && B.gems.length) { var g0 = B.gems.shift(); racs.push({ x: g0.x, y: g0.y - 0.33, t: 0 }); }
+    // demasiadas gemas: como mucho 2 de premio (3 en el jefe)
+    var maxG = boss ? 3 : 2;
     while (B.gems.length > maxG) B.gems.splice(Math.floor(R() * B.gems.length), 1);
     B.gems.forEach(function (g, i) { g.c = (W.gemFrom + i) % 6; });
     // armadillos disponibles en este mundo
@@ -115,17 +144,20 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     var arms = [0];
     var pool = avail.slice(1); while (arms.length < count) { if (!pool.length) pool = avail.slice(); arms.push(pool.splice(Math.floor(R() * pool.length), 1)[0]); }
     var span = x - 17;
-    var three = Math.round(span * 120 + B.gems.length * 1000);
-    return { w: w, n: n, boss: boss, pieces: B.pieces, gems: B.gems, arms: arms, end: x, stars: [1, three * 0.55, three * 0.85] };
+    var three = Math.round(span * 120 + racs.length * 2000 + (boss ? 8000 : 0) + B.gems.length * 1000);
+    var wind = RS.WIND[w] ? RS.WIND[w] * (n % 2 ? 1 : -1) * (0.6 + R3() * 0.6) : 0;
+    return { w: w, n: n, boss: boss, pieces: B.pieces, gems: B.gems, racs: racs, wind: Math.round(wind * 10) / 10, arms: arms, end: boss ? x + 1.5 : x, stars: [1, three * 0.5, three * 0.8] };
   };
 
   // fortaleza rival para la Liga (estilo de clan aleatorio)
   RS.makeRival = function (seed, trophies) {
     var R = rng(seed * 101 + 5);
-    var tier = Math.min(6, 1 + Math.floor((trophies || 0) / 120));
+    var tier = Math.min(12, 1 + Math.floor((trophies || 0) / 120));
     var lvl = RS.makeLevel(tier, 6 + Math.floor(R() * 14), seed);
     var clans = Object.keys(RS.CLANS);
     lvl.clan = clans[Math.floor(R() * clans.length)];
+    var ct = RS.RACS.findIndex(function (r) { return r.clan === lvl.clan; });
+    lvl.racs.forEach(function (r, i) { if (!r.boss && i % 2 === 0 && RS.RACS[ct].h <= RS.RACS[r.t].h + 0.03 && RS.RACS[ct].w <= RS.RACS[r.t].w + 0.03) r.t = ct; });
     lvl.name = RS.RIVAL_NAMES[Math.floor(R() * RS.RIVAL_NAMES.length)];
     lvl.trophies = Math.max(0, (trophies || 0) + Math.floor(R() * 80 - 30));
     lvl.loot = 80 + Math.floor(R() * 120) + tier * 30;

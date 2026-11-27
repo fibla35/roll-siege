@@ -36,7 +36,7 @@
     <button class="ibtn" data-go="settings"><img src="img/ui/i_gear.webp"></button></div>
   <img src="img/ui/logo_s.webp" class="logo-s">
   <div class="homegrid">
-    <button class="card" data-go="map"><img src="img/ui/i_map.webp"><b>Campaña</b><span>6 mundos · 120 niveles</span></button>
+    <button class="card" data-go="map"><img src="img/ui/i_map.webp"><b>Campaña</b><span>12 mundos · 240 niveles</span></button>
     <button class="card" data-go="build"><img src="img/ui/i_build.webp"><b>Mi fortaleza</b><span id="h_fname">Construye y defiende</span></button>
     <button class="card" data-go="league"><img src="img/ui/i_attack.webp"><b>Liga</b><span>Asalta fortalezas rivales</span></button>
     <button class="card" data-go="arms"><img src="img/ui/i_chest.webp"><b>Armadillos</b><span>Tu colección</span></button>
@@ -56,10 +56,12 @@
 <div id="hud" class="screen hud">
   <div class="hudtop">
     <button class="ibtn" id="pausebtn"><img src="img/ui/i_pause.webp"></button>
-    <div class="hudinfo"><span id="hud_lv">1-1</span><span class="pill"><img src="img/ui/gem.webp"><b id="hud_gems">0</b></span><span class="pill score"><b id="hud_score">0</b></span></div>
+    <div class="hudinfo"><span id="hud_lv">1-1</span><span class="pill" id="hud_racp">🦝 <b id="hud_racs">0</b></span><span class="pill"><img src="img/ui/gem.webp"><b id="hud_gems">0</b></span><span class="pill score"><b id="hud_score">0</b></span></div>
   </div>
   <div id="queue"></div>
   <div id="armtip" class="armtip"></div>
+  <div id="debuff" class="debuff"></div>
+  <div id="splat" class="splat"></div>
   <div id="hint" class="hint">Arrastra hacia atrás para cargar pólvora · suelta para disparar · toca en el aire para la habilidad · pellizca para acercar</div>
 </div>
 

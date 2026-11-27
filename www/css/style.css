@@ -183,3 +183,11 @@ input, select { font-family: Nunito; font-weight: 800; font-size: calc(3 * var(-
 .jbcol .jb { max-height: calc(52 * var(--vh)); }
 #settings .panel { max-height: none; overflow: visible; }
 #settings .row .btn { font-size: calc(3 * var(--vh)); height: calc(7.5 * var(--vh)); min-width: 0; }
+.maparrow { position: absolute; bottom: calc(4 * var(--vh)); border: 3px solid #fff4d6; border-radius: calc(4 * var(--vh)); background: radial-gradient(circle at 35% 30%, #ffc94a, #d9771b 60%, #9a4a10); color: #fff; font-family: Lilita, sans-serif; font-size: calc(3.6 * var(--vh)); padding: calc(1 * var(--vh)) calc(2.4 * var(--vh)); box-shadow: 0 3px 0 #5a2a08; text-shadow: 0 2px 0 #7a3a0a; cursor: pointer; }
+.maparrow.right { right: calc(2 * var(--vw)); } .maparrow.left { left: calc(2 * var(--vw)); }
+.maparrow span { font-size: calc(2.6 * var(--vh)); }
+.debuff { position: absolute; left: 50%; bottom: calc(15 * var(--vh)); transform: translateX(-50%); background: rgba(120,20,10,.88); border: 2px solid #ffb030; color: #fff; padding: calc(.8 * var(--vh)) calc(2 * var(--vh)); border-radius: calc(3 * var(--vh)); font-family: Lilita, sans-serif; font-size: calc(2.8 * var(--vh)); opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap; }
+.debuff.show { opacity: 1; }
+.splat { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .6s; }
+.splat.show { opacity: 1; }
+.splat i { position: absolute; width: calc(26 * var(--vh)); height: calc(20 * var(--vh)); background: radial-gradient(circle at 45% 45%, #fff6dc 0 30%, #f4d79a 31% 55%, #e84393 56% 62%, transparent 63%); border-radius: 46% 54% 40% 60%; filter: drop-shadow(0 3px 4px rgba(0,0,0,.4)); }
