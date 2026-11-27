@@ -32,7 +32,7 @@
     this.cat = 'est'; this.hist = []; this.carry = null;
     this.ghost = null; this.sim = null; this.marks = null; this.stable = !!opts.stable; this.t = 0;
     this.z = 1.8; this.cx = -100; this.cy = 4.6; this.ptrs = {};
-    this.resize(); this.bind();
+    this.resize(); this.frameView(); this.bind();
     var self = this; this.last = performance.now();
     this.raf = requestAnimationFrame(function f(t) { if (self.dead) return; var dt = Math.min(0.05, (t - self.last) / 1000); self.last = t; self.update(dt); self.draw(); self.raf = requestAnimationFrame(f); });
   }
@@ -45,8 +45,19 @@
     this.s0 = Math.min((this.W * 0.97) / (GW + 4.5), (this.H - this.top - this.bot) / (GH + 0.3));
     this.clampView();
   };
+  // vista inicial: piezas grandes (unos 7 m de alto visibles) y centrada en la fortaleza (o en el inicio de la zona si está vacía)
+  Builder.prototype.frameView = function () {
+    var areaH = this.H - this.top - this.bot; this.z = Math.max(1, Math.min(5, areaH / (7 * this.s0)));
+    this.s = this.s0 * this.z; var ps = this.L.pieces || [];
+    if (ps.length) { var x0 = 1e9, x1 = -1e9, y1 = 0; ps.forEach(function (p) { var a = RS.pieceAABB(p); x0 = Math.min(x0, a.x0); x1 = Math.max(x1, a.x1); y1 = Math.max(y1, a.y1); });
+      // si la fortaleza es alta, se aleja lo justo para ver la altura; el ancho se recorre arrastrando
+      if ((y1 + 1.2) * this.s > areaH) { this.z = Math.max(1.6, areaH / ((y1 + 1.2) * this.s0)); this.s = this.s0 * this.z; }
+      this.cx = Math.min((x0 + x1) / 2, x0 + this.W / 2 / this.s - 1); }
+    else this.cx = 7;
+    this.cy = 0; this.clampView();
+  };
   Builder.prototype.clampView = function () {
-    this.z = Math.max(1, Math.min(3.2, this.z)); this.s = this.s0 * this.z;
+    this.z = Math.max(1, Math.min(5, this.z)); this.s = this.s0 * this.z;
     var hw = this.W / 2 / this.s, hh = (this.H - this.top - this.bot) / 2 / this.s;
     this.cx = hw * 2 >= GW + 5 ? GW / 2 - 1.5 : Math.max(hw - 4, Math.min(GW + 1 - hw, this.cx));
     this.cy = hh * 2 >= GH + 1 ? GH / 2 : Math.max(hh - 0.6, Math.min(GH + 0.5 - hh, this.cy));
@@ -58,7 +69,7 @@
   Builder.prototype.wy = function (py) { return (this.midY() - py) / this.s + this.cy; };
   Builder.prototype.zoom = function (k, px, py) {
     px = px == null ? this.W / 2 : px; py = py == null ? this.midY() : py;
-    var x = this.wx(px), y = this.wy(py); this.z = Math.max(1, Math.min(3.2, this.z * k)); this.s = this.s0 * this.z;
+    var x = this.wx(px), y = this.wy(py); this.z = Math.max(1, Math.min(5, this.z * k)); this.s = this.s0 * this.z;
     this.cx = x - (px - this.W / 2) / this.s; this.cy = y - (this.midY() - py) / this.s; this.clampView();
   };
 

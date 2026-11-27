@@ -301,3 +301,13 @@ html[lang=en] .rtitle { display: none; } html[lang=en] .rtitle_txt { display: bl
 .fakead { position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 9999; display: flex; align-items: center; justify-content: center; color: #fff; font-family: Lilita, sans-serif; text-align: center; }
 .fakead div { display: flex; flex-direction: column; gap: 10px; font-size: 28px; } .fakead .fa_n { font-size: 64px; color: #ffd23f; } .fakead small { font-family: sans-serif; font-size: 13px; opacity: .7; }
 #events { overflow-y: auto; justify-content: flex-start; } #evlist { padding-bottom: calc(4 * var(--vh)); }
+
+/* constructor: botones con tamaño mínimo para el dedo en móviles apaisados (la altura en vh se queda corta) */
+#build .tb { height: max(calc(7.4 * var(--vh)), 42px); min-width: max(calc(7.4 * var(--vh)), 42px); font-size: max(calc(2.3 * var(--vh)), 12px); }
+#build .tb canvas { height: max(calc(6 * var(--vh)), 34px); }
+#build .tb.ico { width: max(calc(7.4 * var(--vh)), 42px); font-size: max(calc(3.4 * var(--vh)), 20px); }
+#build .tb.mat { font-size: max(calc(2.1 * var(--vh)), 12px); }
+#build .btop .btn.sm { height: max(calc(6.6 * var(--vh)), 36px); font-size: max(calc(2.6 * var(--vh)), 14px); }
+#build .binfo { font-size: max(calc(2.2 * var(--vh)), 12px); }
+#build .tools, #build .pal { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; scrollbar-width: none; }
+#build .tools::-webkit-scrollbar, #build .pal::-webkit-scrollbar { display: none; }
