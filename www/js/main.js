@@ -612,7 +612,7 @@
   SCREENS.settings = function () {
     var jb = $('s_jb'); jb.innerHTML = '';
     TRACKS.forEach(function (t) { var b = document.createElement('button'); b.className = 'tb' + (RS.Audio.cur === t[0] ? ' sel' : ''); b.textContent = '▶ ' + t[1]; b.onclick = function () { RS.Audio.init(); playTrack(t[0]); SCREENS.settings(); }; jb.appendChild(b); });
-    $('s_mus').value = S.vol.music; $('s_sfx').value = S.vol.sfx; $('s_style').value = S.musicStyle; $('s_can').value = S.cannon; $('s_fx').value = S.fx === false ? '0' : '1'; $('s_zoom').value = S.zoomFx === false ? '0' : '1'; $('s_gfx').value = S.gfx || RS.gfxAuto(); $('s_lang').value = RS.lang; $('s_eco').value = S.eco ? '1' : '0'; $('s_vib').value = S.vib === false ? '0' : '1';
+    $('s_mus').value = S.vol.music; $('s_sfx').value = S.vol.sfx; $('s_style').value = S.musicStyle; $('s_can').value = S.cannon; $('s_fx').value = S.fx === false ? '0' : '1'; $('s_zoom').value = S.zoomFx === false ? '0' : '1'; $('s_decor').value = S.decor ? '1' : '0'; $('s_gfx').value = S.gfx || RS.gfxAuto(); $('s_lang').value = RS.lang; $('s_eco').value = S.eco ? '1' : '0'; $('s_vib').value = S.vib === false ? '0' : '1';
     var sc = $('s_clan'); sc.innerHTML = ''; Object.keys(RS.CLANS).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = RS.CLANS[k].short; sc.appendChild(o); }); sc.value = S.clan;
     $('s_unlock').textContent = S.unlockAll ? 'Bloquear de nuevo' : 'Desbloquear todo (pruebas)';
   };
@@ -623,6 +623,7 @@
   $('s_clan').onchange = function () { S.clan = this.value; persist(); toast('Clan: ' + RS.CLANS[S.clan].short); };
   $('s_vib').onchange = function () { S.vib = this.value === '1'; persist(); RS.vib(80); };
   $('s_fx').onchange = function () { S.fx = this.value === '1'; persist(); };
+  $('s_decor').onchange = function () { S.decor = this.value === '1'; persist(); };
   $('s_zoom').onchange = function () { S.zoomFx = this.value === '1'; persist(); };
   $('s_gfx').onchange = function () { S.gfx = this.value; persist(); toast({ high: 'Gráficos en calidad alta', med: 'Gráficos en calidad media', low: 'Gráficos en calidad baja: más fluido en móviles sencillos' }[S.gfx]); };
   $('s_eco').onchange = function () { S.eco = this.value === '1'; persist(); toast(S.eco ? '🔋 Modo Eco activado: 30 fps y menos efectos' : 'Modo Eco desactivado'); };

@@ -324,7 +324,7 @@
     var far = RS.img['bg_' + this.clan];
     if (far) { var fs = Math.max(W / far.width, H / far.height); ctx.drawImage(far, (W - far.width * fs) / 2, (H - far.height * fs) / 2, far.width * fs, far.height * fs); }
     var mid = RS.img['bg_' + this.clan + '_mid'];
-    if (mid) { var mh = 6 * s, mw = mid.width * mh / mid.height, mx = this.sx(-12); mx -= Math.ceil((mx + 1) / (mw - 1)) * (mw - 1); for (var x = mx; x < W; x += mw - 1) ctx.drawImage(mid, x, this.sy(0) - mh + 0.3 * s, mw, mh); }
+    if (mid && RS.save && RS.save.decor) { var mh = 6 * s, mw = mid.width * mh / mid.height, mx = this.sx(-12); mx -= Math.ceil((mx + 1) / (mw - 1)) * (mw - 1); for (var x = mx; x < W; x += mw - 1) ctx.drawImage(mid, x, this.sy(0) - mh + 0.3 * s, mw, mh); }
     var gr = RS.img['bg_' + this.clan + '_ground'];
     if (gr) { var gh = 3 * s, gw = gr.width * gh / gr.height, gx0 = this.sx(-12); gx0 -= Math.ceil((gx0 + 1) / (gw - 1)) * (gw - 1); for (var x2 = gx0; x2 < W; x2 += gw - 1) ctx.drawImage(gr, x2, this.sy(0) - gh * 0.1, gw, gh); ctx.fillStyle = '#2a1a10'; ctx.fillRect(0, this.sy(0) + gh * 0.88, W, H); }
     }

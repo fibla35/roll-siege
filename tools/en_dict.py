@@ -19,7 +19,7 @@ EN = {
 'Buscar otro rival': 'Find another rival', '¡Asediar!': 'Attack!', 'Ajustes': 'Settings', 'Música': 'Music', 'Efectos': 'Sound effects',
 'Estilo de música': 'Music style', 'Mezcla (cada mundo la suya)': 'Mix (each world its own)', 'Drum & bass con voces': 'Drum & bass with vocals',
 '8 bits clásico': 'Classic 8-bit', 'Tranquila': 'Chill', 'Clan': 'Clan', 'Vibración': 'Vibration', 'Activada': 'On', 'Desactivada': 'Off',
-'Clima y efectos': 'Weather and effects', 'Activados': 'On', 'Desactivados': 'Off', 'Zoom al impactar': 'Zoom on impact', 'Sí': 'Yes', 'No': 'No',
+'Clima y efectos': 'Weather and effects', 'Activados': 'On', 'Desactivados': 'Off', 'Zoom al impactar': 'Zoom on impact', 'Decorado de fondo': 'Background scenery', 'No (se ve mejor el juego)': 'No (clearer view)', 'Sí': 'Yes', 'No': 'No',
 'Calidad gráfica': 'Graphics quality', 'Alta': 'High', 'Media': 'Medium', 'Baja': 'Low', 'Modo Eco 🔋': 'Eco mode 🔋', 'Sí (30 fps, ahorra batería)': 'Yes (30 fps, saves battery)',
 'Nivel del cañón (pruebas)': 'Cannon level (testing)', 'Desbloquear todo (pruebas)': 'Unlock everything (testing)', 'Borrar partida': 'Delete progress',
 'Música por código · Roll Siege v0.4': 'Code-made music · Roll Siege', 'Música por código · Roll Siege v0.5': 'Code-made music · Roll Siege',

@@ -593,7 +593,7 @@
     this.clouds.forEach(function (cl) { RS.drawSp(ctx, 'clouds', cl.i, (cl.x - c.x * 0.3) * s * 0.6 + W / 2, self.sy(cl.y) * 0.85, cl.s * s * 1.4, cl.s * s * 1.4 / RS.spAspect('clouds', cl.i), 0, false, 0.9); });
     // capa media (parallax)
     var mid = RS.img['bg_' + this.bg + '_mid'];
-    if (mid && (this.gx || RS.gfx()).mid) {
+    if (mid && (this.gx || RS.gfx()).mid && RS.save && RS.save.decor) { // decorado intermedio: desactivado por defecto para ver bien cañón y fortaleza
       var mh = 6.5 * s, mw = mid.width * mh / mid.height, ox = -((c.x * 0.55 * s) % mw) - mw;
       for (var x = ox; x < W + mw; x += mw - 1) ctx.drawImage(mid, x, this.sy(0) - mh + 0.4 * s, mw, mh);
     }
