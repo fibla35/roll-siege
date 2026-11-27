@@ -164,3 +164,13 @@ input, select { font-family: Nunito; font-weight: 800; font-size: calc(3 * var(-
 .btop .btn.sm { font-size: calc(2.6 * var(--vh)); height: calc(6.6 * var(--vh)); }
 
 .q .nm { display: none; } .q.sel .nm { display: block; left: -3vh; right: -3vh; font-size: calc(2.2 * var(--vh)); white-space: nowrap; font-weight: 900; }
+
+.armtip { position: absolute; top: calc(16 * var(--vh)); right: calc(2 * var(--vw)); max-width: calc(46 * var(--vw)); display: flex; gap: calc(1.2 * var(--vh)); align-items: center; background: rgba(30,16,6,.88); border: 2px solid #f0a020; border-radius: calc(2 * var(--vh)); padding: calc(1 * var(--vh)) calc(1.6 * var(--vh)); opacity: 0; transform: translateY(-6px); transition: opacity .25s, transform .25s; pointer-events: none; }
+.armtip.show { opacity: 1; transform: none; }
+.armtip img { width: calc(8 * var(--vh)); height: calc(8 * var(--vh)); object-fit: contain; flex: none; }
+.armtip b { display: block; font-family: Lilita, sans-serif; font-weight: 400; font-size: calc(3 * var(--vh)); color: #ffd34d; }
+.armtip span { display: block; font-size: calc(2.4 * var(--vh)); line-height: 1.25; }
+.armtip { flex-direction: column; text-align: center; max-width: calc(40 * var(--vw)); min-width: calc(30 * var(--vw)); }
+.armtip img { display: none; }
+.armtip::before { content: ''; position: absolute; top: -9px; left: calc(var(--ax, 50%) - 8px); border: 8px solid transparent; border-top: 0; border-bottom-color: #f0a020; }
+.q .nm, .q.sel .nm { display: none; }

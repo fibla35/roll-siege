@@ -53,18 +53,33 @@
     ctx.restore();
   };
 
-  // cartel con el nombre: el texto se ajusta a la tabla de cada clan
+  // cartel fijo dibujado por código: dos postes clavados en el suelo y una tabla con el nombre (no choca con nada)
   RS.drawSign = function (ctx, clan, name, x, yBottom, s, dpr) {
-    var C = RS.CLANS[clan]; if (!C) return;
-    var sh = 'deco_' + clan, w = 3.2 * s, h = w / RS.spAspect(sh, C.sign), B = C.signBox || [0.5, 0.6, 0.7, 0.4, '#fff4d6'];
-    var top = yBottom - h; RS.drawSp(ctx, sh, C.sign, x, top + h / 2, w, h);
-    var maxW = w * B[2], fs = h * B[3] * 0.8;
-    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = Math.round(fs) + 'px Lilita, sans-serif';
+    var St = { japon: { wood: ['#7a2a1c', '#4a120c'], frame: '#c8352a', trim: '#f2c14e', ink: '#fff4d6' },
+      oeste: { wood: ['#b4743a', '#7a4620'], frame: '#5a3214', trim: '#c9cfd6', ink: '#fff4d6' },
+      azteca: { wood: ['#d9c59a', '#a8916a'], frame: '#6f5b3e', trim: '#1f9e7a', ink: '#3a240e' } }[clan] || null;
+    St = St || { wood: ['#b4743a', '#7a4620'], frame: '#5a3214', trim: '#c9cfd6', ink: '#fff4d6' };
+    var bw = 3.2 * s, bh = 1.05 * s, by = yBottom - 1.95 * s, pw = 0.2 * s, d = dpr || 1;
+    ctx.save();
+    // sombra en el suelo
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(x, yBottom, bw * 0.45, 0.12 * s, 0, 0, 7); ctx.fill();
+    // postes
+    [-1, 1].forEach(function (k) { var px = x + k * bw * 0.33 - pw / 2, g = ctx.createLinearGradient(px, 0, px + pw, 0); g.addColorStop(0, St.wood[1]); g.addColorStop(0.5, St.wood[0]); g.addColorStop(1, St.wood[1]); ctx.fillStyle = g; ctx.fillRect(px, by + bh * 0.2, pw, yBottom - by - bh * 0.2); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(px, yBottom - 0.18 * s, pw, 0.18 * s); });
+    // tabla
+    var r = 0.12 * s, x0 = x - bw / 2, gr = ctx.createLinearGradient(0, by, 0, by + bh); gr.addColorStop(0, St.wood[0]); gr.addColorStop(1, St.wood[1]);
+    ctx.beginPath(); ctx.moveTo(x0 + r, by); ctx.lineTo(x0 + bw - r, by); ctx.quadraticCurveTo(x0 + bw, by, x0 + bw, by + r); ctx.lineTo(x0 + bw, by + bh - r); ctx.quadraticCurveTo(x0 + bw, by + bh, x0 + bw - r, by + bh); ctx.lineTo(x0 + r, by + bh); ctx.quadraticCurveTo(x0, by + bh, x0, by + bh - r); ctx.lineTo(x0, by + r); ctx.quadraticCurveTo(x0, by, x0 + r, by); ctx.closePath();
+    ctx.fillStyle = gr; ctx.fill(); ctx.lineWidth = Math.max(2, 0.07 * s); ctx.strokeStyle = St.frame; ctx.stroke();
+    // vetas
+    ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = Math.max(1, 0.02 * s);
+    for (var k = 1; k < 3; k++) { var yy = by + bh * k / 3; ctx.beginPath(); ctx.moveTo(x0 + 0.1 * s, yy); ctx.lineTo(x0 + bw - 0.1 * s, yy); ctx.stroke(); }
+    // clavos / adornos en las esquinas
+    ctx.fillStyle = St.trim; [[0.08, 0.2], [0.92, 0.2], [0.08, 0.8], [0.92, 0.8]].forEach(function (c) { ctx.beginPath(); ctx.arc(x0 + bw * c[0], by + bh * c[1], 0.06 * s, 0, 7); ctx.fill(); });
+    // nombre ajustado a la tabla
+    var maxW = bw * 0.78, fs = bh * 0.55;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = Math.round(fs) + 'px Lilita, sans-serif';
     var tw = ctx.measureText(name).width; if (tw > maxW) { fs *= maxW / tw; ctx.font = Math.round(fs) + 'px Lilita, sans-serif'; }
-    var light = B[4] !== '#4a2a10';
-    ctx.lineWidth = Math.max(2, fs * 0.16); ctx.strokeStyle = light ? '#3a1e0a' : 'rgba(255,240,210,0.8)'; ctx.fillStyle = B[4];
-    ctx.strokeText(name, x + w * (B[0] - 0.5), top + h * B[1]); ctx.fillText(name, x + w * (B[0] - 0.5), top + h * B[1]);
+    ctx.lineWidth = Math.max(2, fs * 0.16); ctx.strokeStyle = St.ink === '#fff4d6' ? '#2a1408' : 'rgba(255,245,220,0.85)'; ctx.fillStyle = St.ink;
+    ctx.strokeText(name, x, by + bh * 0.54); ctx.fillText(name, x, by + bh * 0.54);
     ctx.restore();
   };
 

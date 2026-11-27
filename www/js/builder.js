@@ -31,7 +31,7 @@
     this.shape = 0; this.mat = 0; this.rot = 0; this.flip = false; this.tool = 'place'; this.paint = 1; this.decoIdx = 0; this.tpl = 0;
     this.cat = 'est'; this.hist = []; this.carry = null;
     this.ghost = null; this.sim = null; this.marks = null; this.stable = !!opts.stable; this.t = 0;
-    this.z = 1.8; this.cx = 9; this.cy = 4.6; this.ptrs = {};
+    this.z = 1.8; this.cx = -100; this.cy = 4.6; this.ptrs = {};
     this.resize(); this.bind();
     var self = this; this.last = performance.now();
     this.raf = requestAnimationFrame(function f(t) { if (self.dead) return; var dt = Math.min(0.05, (t - self.last) / 1000); self.last = t; self.update(dt); self.draw(); self.raf = requestAnimationFrame(f); });
@@ -42,13 +42,13 @@
     var d = Math.min(2, devicePixelRatio || 1); this.dpr = d; this.cv.width = RS.stage.w * d; this.cv.height = RS.stage.h * d; this.W = this.cv.width; this.H = this.cv.height;
     var bar = document.querySelector('#build .bbar'), bt = document.querySelector('#build .btop');
     this.top = bt && bt.offsetHeight ? (bt.offsetHeight + 4) * d : this.H * 0.12; this.bot = bar && bar.offsetHeight ? (bar.offsetHeight + 6) * d : this.H * 0.27;
-    this.s0 = Math.min((this.W * 0.97) / (GW + 1), (this.H - this.top - this.bot) / (GH + 0.3));
+    this.s0 = Math.min((this.W * 0.97) / (GW + 4.5), (this.H - this.top - this.bot) / (GH + 0.3));
     this.clampView();
   };
   Builder.prototype.clampView = function () {
     this.z = Math.max(1, Math.min(3.2, this.z)); this.s = this.s0 * this.z;
     var hw = this.W / 2 / this.s, hh = (this.H - this.top - this.bot) / 2 / this.s;
-    this.cx = hw * 2 >= GW + 2 ? GW / 2 : Math.max(hw - 1, Math.min(GW + 1 - hw, this.cx));
+    this.cx = hw * 2 >= GW + 5 ? GW / 2 - 1.5 : Math.max(hw - 4, Math.min(GW + 1 - hw, this.cx));
     this.cy = hh * 2 >= GH + 1 ? GH / 2 : Math.max(hh - 0.6, Math.min(GH + 0.5 - hh, this.cy));
   };
   Builder.prototype.midY = function () { return this.top + (this.H - this.top - this.bot) / 2; };
@@ -284,7 +284,7 @@
       if (pts) { ctx.beginPath(); pts.forEach(function (c, k) { var X = self.sx(c[0]), Y = self.sy(c[1]); if (k) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }); ctx.closePath(); ctx.stroke(); }
     });
     (this.sim ? this.sim.P.gems.filter(function (g) { return !g.freed; }).map(function (g) { var q = g.body.getPosition(); return { x: q.x, y: q.y, c: g.c }; }) : this.L.gems).forEach(function (g) { RS.drawSp(ctx, 'items', 6 + (g.c || 0), self.sx(g.x), self.sy(g.y), 0.75 * s, 0.75 * s); });
-    if (this.L.sign) { ctx.fillStyle = '#ffd27a'; ctx.font = (13 * d) + 'px Lilita, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🪧 ' + this.L.sign.name, this.sx(this.L.sign.x), this.sy(this.L.sign.y + 0.6)); }
+    RS.drawSign(ctx, this.clan, this.o.getName ? this.o.getName() : (this.o.name || 'Mi fortaleza'), this.sx(-2.1), this.sy(0), s, d);
     var G = this.ghost;
     if (G && !this.sim) {
       var list = G.p ? [G.p] : G.ps, bad = G.p ? G.p.bad : G.bad;
@@ -328,7 +328,7 @@
       this.L.gems.forEach(function (g) { RS.drawSp(ctx, 'items', 6 + g.c, self.sx(g.x), self.sy(g.y), 0.75 * s, 0.75 * s); });
     }
     // cartel con el nombre
-    if (this.L.sign) RS.drawSign(ctx, this.clan, this.L.sign.name, this.sx(this.L.sign.x), this.sy(this.L.sign.y), s, this.dpr);
+    RS.drawSign(ctx, this.clan, this.o.getName ? this.o.getName() : (this.o.name || 'Mi fortaleza'), this.sx(-2.1), this.sy(0), s, this.dpr);
     // fantasma
     var G = this.ghost;
     if (G && !this.sim) {

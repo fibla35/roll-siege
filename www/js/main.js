@@ -98,7 +98,7 @@
   // ---------- mapa ----------
   var WPOS = [[24.4, 34], [39.4, 37.5], [53.3, 36], [66.7, 33], [79.4, 41], [91, 29]];
   SCREENS.map = function () {
-    RS.Audio.play('RSM01');
+    RS.Audio.play('RSM19');
     $('m_stars').textContent = totalStars();
     var box = $('worldnodes'); box.innerHTML = '';
     var W = RS.stage.w, H = RS.stage.h, sc = Math.max(W / 1600, H / 1066), ox = (W - 1600 * sc) / 2, oy = (H - 1066 * sc) / 2;
@@ -147,17 +147,45 @@
       RS.Audio.play(ctx.music);
     });
   }
+  // música de partida: la del mundo y, entre medias, DnB animadas que van rotando
+  var DNB_POOL = ['RSM15', 'RSM16', 'RSM17', 'RSM18', 'RSM19', 'RSM20'];
+  var DNB_ALL = ['RSM03', 'RSM05', 'RSM06', 'RSM08', 'RSM10'].concat(DNB_POOL);
+  function levelMusic(w, n) {
+    if (n === 20) return 'RSM09';
+    if (S.musicStyle === 'dnb') return DNB_ALL[(w * 7 + n) % DNB_ALL.length];
+    if (S.musicStyle && S.musicStyle !== 'mezcla') return RS.WORLDS[w - 1].music;
+    return n % 3 === 1 ? RS.WORLDS[w - 1].music : DNB_POOL[(w * 5 + n) % DNB_POOL.length];
+  }
+  RS.levelMusic = levelMusic;
   function startLevel(w, n) {
     var lvl = RS.makeLevel(w, n), W = RS.WORLDS[w - 1];
-    startGame(lvl, { kind: 'camp', w: w, n: n, style: 'bandido', bg: W.bg, music: n === 20 ? 'RSM09' : W.music, label: w + '-' + n + (n === 20 ? ' JEFE' : '') });
+    startGame(lvl, { kind: 'camp', w: w, n: n, style: 'bandido', bg: W.bg, music: levelMusic(w, n), label: w + '-' + n + (n === 20 ? ' JEFE' : '') });
+  }
+  // al elegir armadillo (o al tocarle el turno) se explica qué hace
+  var lastTip = null;
+  function armTip(force) {
+    if (!game || game.ended) return;
+    var q = game.queue[game.sel]; if (!q || q.used) return;
+    if (!force && lastTip === game.sel + ':' + game.queue.filter(function (x) { return x.used; }).length) return;
+    lastTip = game.sel + ':' + game.queue.filter(function (x) { return x.used; }).length;
+    var A = RS.ARMS[q.arm], el = $('armtip');
+    el.innerHTML = '<img src="img/ui/por' + q.arm + '.webp" alt=""><div><b></b><span></span></div>';
+    el.querySelector('b').textContent = A.name + ' · ' + RS.RARE[A.rare];
+    el.querySelector('span').textContent = A.desc;
+    // justo debajo del retrato elegido
+    var qb = $('queue').children[game.sel], st = $('stage').getBoundingClientRect();
+    if (qb) { var r = qb.getBoundingClientRect(), cx = r.left + r.width / 2 - st.left; el.style.top = (r.bottom - st.top + 8) + 'px'; el.style.right = 'auto';
+      var w = el.offsetWidth || 260; var left = Math.max(6, Math.min(st.width - w - 6, cx - w / 2)); el.style.left = left + 'px'; el.style.setProperty('--ax', (cx - left) + 'px'); }
+    el.classList.add('show'); clearTimeout(armTip.t); armTip.t = setTimeout(function () { el.classList.remove('show'); }, 4200);
   }
   function drawQueue() {
     if (!game) return;
+    if (game.state === 'aim') armTip(); else $('armtip').classList.remove('show');
     var q = $('queue'); q.innerHTML = '';
     game.queue.forEach(function (it, i) {
       var b = document.createElement('button'); b.className = 'q' + (i === game.sel ? ' sel' : '') + (it.used ? ' used' : '');
       b.innerHTML = '<img src="img/ui/por' + it.arm + '.webp"><div class="nm">' + RS.ARMS[it.arm].name + '</div>';
-      b.onpointerdown = function (e) { e.stopPropagation(); game.selectArm(i); };
+      b.onpointerdown = function (e) { e.stopPropagation(); game.selectArm(i); armTip(true); };
       q.appendChild(b);
     });
   }
@@ -174,7 +202,7 @@
   function syncAudioBtns() { $('p_mus').classList.toggle('off', S.vol.music === 0); $('p_snd').classList.toggle('off', S.vol.sfx === 0); }
   $('p_mus').onclick = function () { S.vol.music = S.vol.music ? 0 : 0.6; RS.Audio.setVol('music', S.vol.music); persist(); syncAudioBtns(); };
   $('p_snd').onclick = function () { S.vol.sfx = S.vol.sfx ? 0 : 0.8; RS.Audio.setVol('sfx', S.vol.sfx); persist(); syncAudioBtns(); };
-  function retry() { var c = ctxGame; startGame(c.kind === 'camp' ? RS.makeLevel(c.w, c.n) : c.kind === 'league' ? RS.makeRival(S.rivalSeed, S.trophies) : ownLevel(), c); }
+  function retry() { var c = ctxGame; startGame(c.kind === 'camp' ? RS.makeLevel(c.w, c.n) : c.kind === 'league' ? rivalLevel() : ownLevel(), c); }
   function back() { var k = ctxGame && ctxGame.kind; show(k === 'camp' ? 'levels' : k === 'league' ? 'league' : 'build'); }
 
   function onEnd(r) {
@@ -216,9 +244,15 @@
   };
 
   // ---------- liga ----------
-  function startLeague() {
+  function rivalLevel() {
     var r = RS.makeRival(S.rivalSeed, S.trophies);
-    startGame(r, { kind: 'league', style: r.clan, bg: r.clan, music: 'RSM10', label: r.name });
+    r.sign = { x: Math.min.apply(null, r.pieces.map(function (p) { return RS.pieceAABB(p).x0; })) - 2.4, y: 0, name: r.name };
+    return r;
+  }
+  function startLeague() {
+    var r = rivalLevel();
+    if (0) r.sign = { x: Math.min.apply(null, r.pieces.map(function (p) { return RS.pieceAABB(p).x0; })) - 2.4, y: 0, name: r.name };
+    startGame(r, { kind: 'league', style: r.clan, bg: r.clan, music: ['RSM10', 'RSM15', 'RSM17', 'RSM18', 'RSM20'][S.rivalSeed % 5], label: r.name });
   }
   function miniDraw(canvas, lvl, style) {
     var c = canvas.getContext('2d'), W = canvas.width = 400, H = canvas.height = 200;
@@ -249,9 +283,9 @@
     var gems = L.gems.map(function (g) { return { x: g.x + OFF, y: g.y, c: g.c }; });
     var xs = pieces.map(function (p) { return RS.pieceAABB(p).x1; }), endX = xs.length ? Math.max.apply(null, xs) : OFF + 10;
     var three = Math.round((endX - OFF) * 120 + gems.length * 1000);
-    return { pieces: pieces, gems: gems, arms: [0, 1, 3, 2, 4], end: endX, stars: [1, three * 0.55, three * 0.85], deco: (L.deco || []).map(function (d) { return Object.assign({}, d, { x: d.x + OFF }); }), sign: L.sign ? Object.assign({}, L.sign, { x: L.sign.x + OFF, name: S.name }) : null };
+    return { pieces: pieces, gems: gems, arms: [0, 1, 3, 2, 4], end: endX, stars: [1, three * 0.55, three * 0.85], deco: (L.deco || []).map(function (d) { return Object.assign({}, d, { x: d.x + OFF }); }), sign: { x: OFF - 2.1, y: 0, name: S.name } };
   }
-  var TOOLS = [['place', '🧱', 'Poner'], ['tpl', '🏠', 'Plantillas'], ['move', '✋', 'Mover'], ['pick', '📋', 'Copiar'], ['erase', '🗑', 'Quitar'], ['weld', '🔩', 'Soldar'], ['swap', '♻', 'Cambiar material'], ['paint', '🎨', 'Pintar'], ['gem', '💎', 'Gema'], ['deco', '🏮', 'Adorno'], ['sign', '🪧', 'Cartel'], ['pan', '👁', 'Mover la vista']];
+  var TOOLS = [['place', '🧱', 'Poner'], ['tpl', '🏠', 'Plantillas'], ['move', '✋', 'Mover'], ['pick', '📋', 'Copiar'], ['erase', '🗑', 'Quitar'], ['weld', '🔩', 'Soldar'], ['swap', '♻', 'Cambiar material'], ['paint', '🎨', 'Pintar'], ['gem', '💎', 'Gema'], ['deco', '🏮', 'Adorno'], ['pan', '👁', 'Mover la vista']];
   var ROTN = ['normal', 'vertical', 'diagonal ↗', 'diagonal ↘'];
   var CATS = [['est', 'Estructura'], ['ref', 'Refuerzos'], ['trap', 'Trampas']];
   function pieceIcon(p, bw, bh) {
@@ -333,7 +367,7 @@
     RS.loadBg(S.clan).then(function () {
       if (cur !== 'build') return;
       if (builder) builder.destroy();
-      builder = new RS.Builder(cv, { clan: S.clan, layout: S.layout, stable: S.stable, name: S.name, budget: RS.buildBudget(S, maxWorld()), onChange: function () { if (builder && builder.tool !== buildUI.last) buildUI(); else updB(); } });
+      builder = new RS.Builder(cv, { clan: S.clan, layout: S.layout, stable: S.stable, name: S.name, getName: function () { return S.name; }, budget: RS.buildBudget(S, maxWorld()), onChange: function () { if (builder && builder.tool !== buildUI.last) buildUI(); else updB(); } });
       builder.blue = !!S.blueprint;
       buildUI();
     });
@@ -353,7 +387,7 @@
     var B = builder; if (!B) return;
     if (!B.L.gems.length) return toast('Pon al menos una gema');
     S.layout = JSON.parse(JSON.stringify(B.L)); S.stable = B.stable; persist();
-    startGame(ownLevel(), { kind: 'own', style: S.clan, bg: S.clan, music: 'RSM10', label: S.name });
+    startGame(ownLevel(), { kind: 'own', style: S.clan, bg: S.clan, music: 'RSM15', label: S.name });
   };
 
   // ---------- armadillos ----------
