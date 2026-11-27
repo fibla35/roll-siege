@@ -272,3 +272,16 @@ input, select { font-family: Nunito; font-weight: 800; font-size: calc(3 * var(-
 .boost .bi img { height: calc(8 * var(--vh)); display: block; }
 .hbtn .evi { height: calc(6 * var(--vh)); }
 .evcard h3 img { height: calc(6 * var(--vh)); vertical-align: middle; margin-right: calc(.5 * var(--vw)); }
+
+/* modo difícil */
+.modes { display: flex; gap: calc(1 * var(--vw)); margin-left: auto; margin-right: calc(2 * var(--vw)); }
+.modes .tb { font-size: calc(2.8 * var(--vh)); padding: calc(.8 * var(--vh)) calc(1.6 * var(--vw)); }
+.modes .hardtab.sel { background: linear-gradient(#8e2de2, #4a0e5c); color: #fff; border-color: #ffb3ff; }
+.modes .lockedtab { opacity: .55; }
+#levels.hardmode { background-color: #1a0820; }
+.lv.hard { filter: hue-rotate(250deg) saturate(1.3); }
+
+.modes .mounttab.sel { background: linear-gradient(#5d8a3a, #2f5a1c); color: #fff; border-color: #d9f7a8; }
+#levels.mountmode { background-color: #0f1d10; }
+.lv.mount { filter: hue-rotate(-95deg) saturate(1.1); }
+#levels.mountmode #levelgrid { grid-template-columns: repeat(5, 1fr); width: calc(60 * var(--vw)); }

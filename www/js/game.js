@@ -174,11 +174,11 @@
     if (this.boost.extra) { var pool = [3, 2, 6, 8, 1]; this.queue.push({ arm: pool[Math.floor(Math.random() * pool.length)], used: false, freed: true }); }
     this.sel = 0; this.state = 'aim'; this.parts = []; this.pops = []; this.shake = 0;
     this.defense = !!this.o.defense; if (this.defense) { this.state = 'dwait'; this.dT = -1.5; this.dShots = 3; this.intercepts = 2; }
-    this.aim = null; this.power = 0; this.angle = 0.6; this.recoil = 0; this.fireAnim = 0; this.flightT = 0; this.settleT = 0;
+    this.aim = null; this.power = 0; this.angle = level.mortar ? 1.0 : 0.6; this.recoil = 0; this.fireAnim = 0; this.flightT = 0; this.settleT = 0;
     this.cannonX = 0; this.clouds = []; this.t = 0; this.paused = false; this.ended = false;
     for (var i = 0; i < 6; i++) this.clouds.push({ i: i % 8, x: Math.random() * 60 - 10, y: 9 + Math.random() * 6, v: 0.2 + Math.random() * 0.4, s: 2 + Math.random() * 2 });
     this.uz = 1; this.ptrs = {};
-    var top = 3; (level.pieces || []).forEach(function (p) { var a = RS.pieceAABB(p); if (a.y1 > top) top = a.y1; }); this.topY = top;
+    var top = 3; (level.pieces || []).forEach(function (p) { var a = RS.pieceAABB(p); if (a.y1 > top) top = a.y1; }); (level.terrain || []).forEach(function (t) { if (t.top + 1 > top) top = t.top + 1; }); this.topY = top;
     this.resize(); this.camHome(true); this.intro = 0;
     this.bind(); this.last = performance.now(); this.acc = 0; this.initWeather();
     var self = this; this.raf = requestAnimationFrame(function f(t) { if (self.dead) return; self.frame(t); self.raf = requestAnimationFrame(f); });
@@ -266,6 +266,7 @@
     var lv = this.cannonLvl, sheet = 'can_' + this.clan;
     var bw = 2.5, bh = bw / RS.spAspect(sheet, lv);
     var tl = 2.9, th = tl / RS.spAspect(sheet, 4 + lv);
+    if (this.level.mortar) { tl = 2.1; th *= 1.45; } // mortero: tubo corto y ancho para tiros altos
     var pivot = { x: this.cannonX + 0.1, y: bh * 0.78 };
     var dir = { x: Math.cos(this.angle), y: Math.sin(this.angle) };
     return { sheet: sheet, bw: bw, bh: bh, tl: tl, th: th, pivot: pivot, muzzle: { x: pivot.x + dir.x * tl * 0.56, y: pivot.y + dir.y * tl * 0.56 }, dir: dir };
@@ -317,7 +318,7 @@
     var len = Math.hypot(dx, dy);
     if (len < 8) return;
     var a = Math.atan2(dy, dx); if (dx < 0) a = dy > 0 ? Math.PI / 2 : -0.17;
-    this.angle = Math.max(-0.17, Math.min(1.4, a));
+    this.angle = this.level.mortar ? Math.max(0.3, Math.min(1.45, a)) : Math.max(-0.17, Math.min(1.4, a));
     var p = Math.min(1, len / (this.H * 0.32));
     if (p > this.power + 0.04 && this.t - (this.pourT || 0) > 0.18) { RS.Audio.sfx('pour', 0.25 + p * 0.3); this.pourT = this.t; }
     this.power = p;
@@ -345,7 +346,8 @@
     if (this.cap) pw = Math.min(pw, this.cap);
     this.cap = 0; this.jitter = 0; if (this.o.onDebuff) this.o.onDebuff(null);
     var ub = this.phys.launch(q.arm, g.muzzle, ang, pw); ub.mult *= 1 + 0.08 * (((RS.save && RS.save.armLv && RS.save.armLv[q.arm]) || 1) - 1);
-    this.lastArm = q.arm; this.combo = 0; this.comboPts = 0; RS.vib(30); stat(this, 'shot', q.arm);
+    this.lastArm = q.arm; this.combo = 0; this.comboPts = 0; this.impactZoom = false;
+    this.shotKO0 = this.phys.racs.filter(function (r) { return r.ko; }).length; this.shotBroken0 = this.phys.destroyed; RS.vib(30); stat(this, 'shot', q.arm);
     q.used = true; this.state = 'flight'; this.flightT = 0; this.recoil = 1; this.shake = 10 * this.dpr;
     RS.Audio.sfx('cannon', 0.9);
     this.parts.push({ fx: 'pow', fr: [6, 7, 8, 9, 10, 11], x: g.muzzle.x + g.dir.x * 0.9, y: g.muzzle.y + g.dir.y * 0.9, w: 2.4, life: 0.45, t: 0, ang: -ang });
@@ -390,7 +392,9 @@
     if (this.state === 'flight') {
       this.flightT += dt;
       var b = P.activeBall();
-      if (b) { var bp = b.body.getPosition(); this.camT = { x: Math.min(this.camMaxX(), Math.max(this.camHomeX(), bp.x + 2)), y: 0, s: this.baseScale(), lift: Math.max(0, (bp.y - this.viewTop()) * this.cam.s) }; }
+      if (b) { var bp = b.body.getPosition();
+        if (this.level.mortar) { var bs = this.baseScale(), zs = Math.max(bs * 0.45, Math.min(bs, this.H * 0.82 / (bp.y + 2))); this.camT = { x: Math.min(this.camMaxX(), Math.max(this.camHomeX(), bp.x + 2)), y: 0, s: zs, lift: 0 }; }
+        else this.camT = { x: Math.min(this.camMaxX(), Math.max(this.camHomeX(), bp.x + 2)), y: 0, s: this.baseScale(), lift: Math.max(0, (bp.y - this.viewTop()) * this.cam.s) }; }
       var endX = (this.level.end || 30) + 4; var alive = P.balls.filter(function (u) { var q = u.body.getPosition(); return u.rest < 1.0 && q.x < endX && q.x > -12; });
       if (!P.balls.length || !alive.length || this.flightT > 9) {
         P.balls.forEach(function (u) { var q = u.body.getPosition(); self.dust(q.x, q.y, 1.4); u.dead = true; P.dead.push(u.body); });
@@ -411,7 +415,7 @@
       else if (!this.view) { this.camHome(false); }
       else this.view = Math.max(0, this.view - dt);
     }
-    if (this.focus && this.focus.t > 0) { this.focus.t -= dt; var fs = this.baseScale() * 1.35; this.camT = { x: this.focus.x, y: 0, s: fs, lift: Math.max(0, (this.focus.y - 3) * fs) }; }
+    if (this.focus && this.focus.t > 0) { this.focus.t -= dt; var fs = this.baseScale() * (this.focus.z || 1.35); this.camT = { x: this.focus.x, y: 0, s: fs, lift: Math.max(0, (this.focus.y - 3) * fs) }; }
     if (this.big) { this.big.t += dt; if (this.big.t > this.big.life) this.big = null; }
     var c = this.cam, T = this.camT, k = Math.min(1, dt * 3.5);
     c.x += (T.x - c.x) * k; c.s += (T.s - c.s) * k; c.lift = (c.lift || 0) + ((T.lift || 0) - (c.lift || 0)) * k;
@@ -438,10 +442,24 @@
   Game.prototype.won = function () { var P = this.phys; return P.racs.length ? P.racsLeft() === 0 : P.gemsLeft() === 0; };
   Game.prototype.afterShot = function () {
     var P = this.phys;
+    var msgs = [];
     if (!this.defense && this.combo >= 3) {
       var cb = Math.min(10, this.combo), bonus = cb * 250; P.score += bonus;
-      this.big = { txt: '¡COMBO x' + cb + '!  +' + bonus, t: 0, life: 1.6 }; RS.Audio.sfx('star', 0.8); stat(this, 'combo', cb);
+      msgs.push('¡COMBO x' + cb + '!  +' + bonus); stat(this, 'combo', cb);
     }
+    // jugadas maestras de un solo tiro: varios K.O. o un gran derrumbe (como mucho 1 armadillo extra por nivel)
+    if (!this.defense && this.shotKO0 != null) {
+      var kos = P.racs.filter(function (r) { return r.ko; }).length - this.shotKO0, broke = P.destroyed - this.shotBroken0, gift = false;
+      if (kos >= 3) { P.score += 2500; msgs.push('¡TRIPLE K.O.!  +2500'); gift = true; stat(this, 'multiko', kos); }
+      else if (kos === 2) { P.score += 1000; msgs.push('¡DOBLE K.O.!  +1000'); stat(this, 'multiko', 2); }
+      if (broke >= 8) { P.score += 800; msgs.push('¡DERRUMBE! ' + broke + ' piezas  +800'); gift = true; stat(this, 'collapse', broke); }
+      if (gift && !this.giftArm && !this.won()) {
+        this.giftArm = true; this.queue.push({ arm: this.lastArm != null ? this.lastArm : 0, used: false, freed: true });
+        msgs.push('🎁 +1 ARMADILLO'); if (this.o.onQueue) this.o.onQueue(); RS.vib(60);
+      }
+      this.shotKO0 = null;
+    }
+    if (msgs.length) { this.big = { txt: msgs.join('\n'), t: 0, life: 1.4 + msgs.length * 0.4 }; RS.Audio.sfx('star', 0.8); }
     this.combo = 0;
     if (this.defense) {
       if (P.gemsLeft() === 0) return this.finish(false);
@@ -460,7 +478,7 @@
     var self = this, P = this.phys, alive = P.racs.filter(function (r) { return !r.ko; }), acts = [];
     alive.forEach(function (r) { var a = r.boss ? RS.BOSSES[r.bi != null ? r.bi : RS.bossIdx(self.level.w || 1)].act : r.T.act; if (a) acts.push({ r: r, a: a }); });
     if (!acts.length) return false;
-    acts.sort(function () { return Math.random() - 0.5; }); acts = acts.slice(0, 2);
+    acts.sort(function () { return Math.random() - 0.5; }); acts = acts.slice(0, this.level.enemyActs || 2);
     var g = this.cannonGeo();
     acts.forEach(function (A, i) {
       var r = A.r, q = r.body.getPosition(), a = A.a, delay = i * 0.55; r.actT = 1.2 + delay;
@@ -488,6 +506,9 @@
     var left = this.queue.filter(function (q) { return !q.used; }).length;
     var bonus = win ? left * 1500 : 0, score = this.phys.score + bonus;
     var st = this.level.stars, stars = win ? 1 + (score >= st[1] ? 1 : 0) + (score >= st[2] ? 1 : 0) : 0;
+    // con par: las estrellas dependen de los armadillos gastados (★★★ = tiro perfecto)
+    var usedN = this.queue.filter(function (q) { return q.used; }).length, par = this.level.par;
+    if (win && par) stars = usedN <= par ? 3 : usedN <= par + 1 ? 2 : 1;
     if (this.defense) { var gl = this.phys.gemsLeft(), gt = this.phys.gems.length || 1; stars = win ? Math.max(1, Math.round(3 * gl / gt)) : 0; score = 1000 * gl + 500 * this.intercepts; bonus = 0; }
     var destr = this.phys.totalValue ? this.phys.destroyedValue / this.phys.totalValue : 0;
     this.result = { used: this.queue.filter(function (q) { return q.used; }).length, win: win, stars: stars, score: score, bonus: bonus, left: left, destr: destr, racs: this.phys.racs.length, ko: this.phys.racs.filter(function (r) { return r.ko; }).length, gems: this.phys.gems.length, gemsGot: this.phys.gems.filter(function (g) { return g.freed; }).length };
@@ -508,6 +529,8 @@
       } else if (e.t === 'crack') {
         RS.Audio.sfx({ wood: 'wood_hit', stone: 'stone_hit', ice: 'ice_break', metal: 'metal_hit', glass: 'glass_break' }[M.sfx], 0.35);
       } else if (e.t === 'hit') {
+        // zoom corto en el primer golpe fuerte de cada tiro, para ver bien el impacto
+        if (e.d > 25 && !self.impactZoom && !self.defense && !(self.focus && self.focus.t > 0) && self.state === 'flight' && !(RS.save && RS.save.zoomFx === false)) { self.impactZoom = true; self.focus = { x: e.x, y: e.y, t: 0.7, z: 1.22 }; }
         if (e.d > 25) { self.parts.push({ fx: 'fx', fr: [8, 9, 10, 11], x: e.x, y: e.y, w: 1.3, life: 0.3, t: 0 }); RS.Audio.sfx({ wood: 'wood_hit', stone: 'stone_hit', ice: 'stone_hit', metal: 'metal_hit', glass: 'stone_hit' }[M.sfx], Math.min(0.5, e.d / 120)); }
       } else if (e.t === 'racko') {
         RS.Audio.sfx(e.boss ? 'explode' : 'star', 0.7); self.dust(e.x, e.y, 1.4); self.pops.push({ x: e.x, y: e.y + 1, t: 0, txt: '+' + e.v, gold: true });
@@ -562,8 +585,17 @@
       for (var x2 = gx - gw * Math.floor((gx) / gw) - gw; x2 < W; x2 += gw - 1) ctx.drawImage(gr, x2, gy, gw, gh);
       ctx.fillStyle = '#2a1a10'; ctx.fillRect(0, gy + gh - 2, W, H);
     } else { ctx.fillStyle = '#5a4'; ctx.fillRect(0, this.sy(0), W, H); }
-    // adornos y cartel (fortalezas de jugador)
+    // terreno del Modo Montaña: roca con la textura del suelo del mundo y la hierba arriba
     var L = this.level;
+    (L.terrain || []).forEach(function (t) {
+      ctx.save(); ctx.beginPath(); t.pts.forEach(function (q, k) { var X = self.sx(q[0]), Y = self.sy(q[1]); if (k) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }); ctx.closePath();
+      ctx.fillStyle = '#3b2a20'; ctx.fill(); ctx.save(); ctx.clip();
+      if (gr) { var th = 3.2 * s, tw = gr.width * th / gr.height, x0 = self.sx(Math.min.apply(null, t.pts.map(function (q) { return q[0]; }))) - tw * 0.3;
+        for (var yy = self.sy(t.top) - th * 0.12, row = 0; yy < self.sy(0) + th; yy += th * 0.72, row++) for (var xx = x0 - (row % 2) * tw * 0.4; xx < self.sx(Math.max.apply(null, t.pts.map(function (q) { return q[0]; }))) + tw; xx += tw - 1) ctx.drawImage(gr, xx, yy, tw, th); }
+      ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.fillRect(0, self.sy(t.top) + 1.2 * s, W, H);
+      ctx.restore(); ctx.lineWidth = Math.max(2, s * 0.06); ctx.strokeStyle = 'rgba(30,18,10,0.85)'; ctx.stroke(); ctx.restore();
+    });
+    // adornos y cartel (fortalezas de jugador)
     (L.deco || []).forEach(function (d) { var sh = L.decoSheet || ('deco_' + self.style), a = RS.spAspect(sh, d.d), w = d.w * s, h = w / a; RS.drawSp(ctx, sh, d.d, self.sx(d.x), self.sy(d.y) - h / 2, w, h); });
     if (L.sign && RS.CLANS[this.style]) RS.drawSign(ctx, this.style, L.sign.name, this.sx(L.sign.x), this.sy(L.sign.y), s, this.dpr);
     // bloques
@@ -607,7 +639,7 @@
     if (this.state === 'aim') this.drawAim(ctx);
     if (this.level.tod) this.drawNight(ctx);
     this.drawWeather(ctx);
-    if (this.big) { var bk = this.big.t / this.big.life, sc = 1 + Math.max(0, 0.4 - this.big.t * 2); ctx.save(); ctx.globalAlpha = bk > 0.8 ? (1 - bk) * 5 : 1; ctx.font = Math.round(46 * this.dpr * sc) + 'px Lilita, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 8 * this.dpr; ctx.strokeStyle = '#3a1e0a'; ctx.fillStyle = '#ffd23f'; ctx.strokeText(this.big.txt, this.W / 2, this.H * 0.32); ctx.fillText(this.big.txt, this.W / 2, this.H * 0.32); ctx.restore(); }
+    if (this.big) { var bk = this.big.t / this.big.life, sc = 1 + Math.max(0, 0.4 - this.big.t * 2); ctx.save(); ctx.globalAlpha = bk > 0.8 ? (1 - bk) * 5 : 1; ctx.font = Math.round(46 * this.dpr * sc) + 'px Lilita, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 8 * this.dpr; ctx.strokeStyle = '#3a1e0a'; ctx.fillStyle = '#ffd23f'; var lines = String(this.big.txt).split('\n'), lh = 52 * this.dpr * sc, y0 = this.H * 0.3 - (lines.length - 1) * lh / 2, self2 = this; lines.forEach(function (ln, i) { if (i) ctx.font = Math.round(36 * self2.dpr * sc) + 'px Lilita, sans-serif'; ctx.strokeText(ln, self2.W / 2, y0 + i * lh); ctx.fillText(ln, self2.W / 2, y0 + i * lh); }); ctx.restore(); }
     this.drawHudExtra(ctx);
     // textos flotantes
     ctx.textAlign = 'center'; ctx.font = (22 * this.dpr) + 'px Lilita, sans-serif';
@@ -687,10 +719,10 @@
       if (this.boost.aim) {
         // mira láser: trayectoria completa hasta el suelo, teniendo en cuenta el viento
         var wnd = this.phys.wind || 0; ctx.save(); ctx.strokeStyle = 'rgba(255,60,40,0.85)'; ctx.lineWidth = 3 * dpr; ctx.setLineDash([10 * dpr, 7 * dpr]); ctx.beginPath();
-        for (var k = 0; k < 160; k++) { var tt = k * 0.03, X = g.muzzle.x + g.dir.x * v * tt + 0.5 * wnd * tt * tt, Y = g.muzzle.y + g.dir.y * v * tt + 0.5 * RS.PHYS.gravity * tt * tt; if (k) ctx.lineTo(this.sx(X), this.sy(Y)); else ctx.moveTo(this.sx(X), this.sy(Y)); if (Y < 0) break; }
+        for (var k = 0; k < 160; k++) { var tt = k * 0.03, X = g.muzzle.x + g.dir.x * v * tt + 0.5 * wnd * tt * tt, Y = g.muzzle.y + g.dir.y * v * tt + 0.5 * RS.PHYS.gravity * (this.phys.ballGrav || 1) * tt * tt; if (k) ctx.lineTo(this.sx(X), this.sy(Y)); else ctx.moveTo(this.sx(X), this.sy(Y)); if (Y < 0) break; }
         ctx.stroke(); ctx.restore();
       } else for (var i = 1; i <= n; i++) {
-        var t = i * 0.075, x = g.muzzle.x + g.dir.x * v * t, y = g.muzzle.y + g.dir.y * v * t + 0.5 * RS.PHYS.gravity * t * t;
+        var t = i * 0.075, x = g.muzzle.x + g.dir.x * v * t, y = g.muzzle.y + g.dir.y * v * t + 0.5 * RS.PHYS.gravity * (this.phys.ballGrav || 1) * t * t;
         RS.drawSp(ctx, 'pow', 4, this.sx(x), this.sy(y), (13 - i * 0.5) * dpr, (13 - i * 0.5) * dpr, 0, false, 1 - i / (n + 2));
       }
     }

@@ -72,9 +72,14 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
   };
 
   // variantes revisadas con tests/find_variant.js (la generada por defecto no era ganable)
-  RS.LEVEL_FIX = { '4-5': 1, '4-16': 1, '7-2': 1, '9-6': 1, '9-20': 1, '12-10': 1, '12-17': 1, '12-19': 1, '14-6': 1, '14-12': 1, '15-11': 1, '16-10': 1, '18-9': 2, '18-20': 1 };
+  RS.LEVEL_FIX = { '4-5': 1, '4-16': 1, '7-2': 1, '9-6': 2, '9-20': 1, '12-10': 1, '12-17': 1, '12-19': 1, '14-6': 1, '14-12': 1, '15-11': 1, '16-10': 1, '18-9': 2, '18-20': 1 };
+  // «Par»: armadillos que necesita un tiro perfecto (tests/test_win.js, sin habilidades). Un dígito por nivel (1-20).
+  RS.PAR = { 1: '11111121413221211523', 2: '12111223131232221243', 3: '11112221312322333243', 4: '11321143225423454224', 5: '11142221222332324345', 6: '11143112533332622424', 7: '22231232322262332233', 8: '22112133221622133424', 9: '11211121222513422327', 10: '11122221422332252323', 11: '12112251322212321225', 12: '21232112121132222257', 13: '11211222213132212223', 14: '22141523422332223423', 15: '22212223121222121314', 16: '12122131113413252127', 17: '22222212232212123323', 18: '14121121221132131225' };
+  RS.PAR_HARD = { 1: '11111131213221211543', 2: '12111223131453251243', 3: '11112222312422334253', 4: '12322153224434454224', 5: '11102221222435324464', 6: '11143112035302022525', 7: '23241330022642332243', 8: '22112132221022163425', 9: '11231121222013420620', 10: '11122321322332252323', 11: '12112251322212321325', 12: '21232110121132223267', 13: '11212222212232222223', 14: '42101523422332235433', 15: '02212224121222121324', 16: '12133131215615262134', 17: '22232012142212123424', 18: '14131151221132131227' }; // 0 = el test no lo gana: se deja la cola completa
+  RS.par = function (w, n, hard) { var t = (hard ? RS.PAR_HARD : RS.PAR)[w]; return t ? +t[n - 1] || 0 : 0; };
   RS.makeLevel = function (w, n, variant) {
-    if (variant === undefined && RS.LEVEL_FIX[w + '-' + n]) variant = RS.LEVEL_FIX[w + '-' + n];
+    var std = variant === undefined;
+    if (std && RS.LEVEL_FIX[w + '-' + n]) variant = RS.LEVEL_FIX[w + '-' + n];
     var W = RS.WORLDS[w - 1], R = rng(w * 1000 + n * 37 + (variant || 0) * 7919);
     var strong = W.mats.filter(function (m) { return RS.MATS[m].hp >= 130; });
     var B = new Builder(R, W.mats, strong);
@@ -146,6 +151,9 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     var count = Math.max(3, Math.min(6, 2 + mods + (boss ? 2 : 0))) + (boss && w >= 9 ? 1 : 0);
     var arms = [0];
     var pool = avail.slice(1); while (arms.length < count) { if (!pool.length) pool = avail.slice(); arms.push(pool.splice(Math.floor(R() * pool.length), 1)[0]); }
+    // la cola se ajusta al par: hay que pensar dónde dar (margen 2 en los mundos 1-2, 1 después; los jefes, uno más)
+    var par = std ? RS.par(w, n) : 0;
+    if (par) arms = arms.slice(0, Math.max(2, Math.min(arms.length, par + (w <= 2 ? 2 : 1) + (boss ? 1 : 0))));
     var span = x - 17;
     var three = Math.round(span * 120 + racs.length * 2000 + (boss ? 8000 : 0) + B.gems.length * 1000);
     var wind = RS.WIND[w] ? RS.WIND[w] * (n % 2 ? 1 : -1) * (0.6 + R3() * 0.6) : 0;
@@ -158,7 +166,44 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     var tod = w === 15 ? 'night' : [6, 7, 11].indexOf(w) >= 0 ? null : n % 6 === 3 ? 'dusk' : n % 6 === 5 ? 'night' : null;
     if (weather === 'storm' && !tod) tod = 'dusk';
     if (boss) weather = w === 3 ? 'blizzard' : w === 4 || w === 9 || w === 12 || w === 15 || w === 17 || w === 18 ? WX[w] : 'storm';
-    return { w: w, n: n, boss: boss, weather: weather, tod: tod, pieces: B.pieces, gems: B.gems, racs: racs, wind: Math.round(wind * 10) / 10, arms: arms, end: boss ? x + 1.5 : x, stars: [1, three * 0.5, three * 0.8] };
+    return { par: par, w: w, n: n, boss: boss, weather: weather, tod: tod, pieces: B.pieces, gems: B.gems, racs: racs, wind: Math.round(wind * 10) / 10, arms: arms, end: boss ? x + 1.5 : x, stars: [1, three * 0.5, three * 0.8] };
+  };
+
+  // Modo difícil: un armadillo menos (salvo donde el test dice que haría el nivel imposible), mapaches más duros y más acciones
+  RS.HARD_KEEP = {'2-13': 1, '2-16': 1, '11-7': 1, '12-8': 1, '12-19': 1, '12-20': 1, '14-1': 1, '14-4': 1, '14-6': 1, '15-1': 1, '16-11': 1, '16-12': 1, '16-16': 1, '17-6': 1, '18-2': 1, '18-7': 1, '18-20': 1, '4-7': 1, '5-4': 1, '5-19': 1, '6-4': 1, '6-9': 1, '6-11': 1, '6-13': 1, '6-15': 1, '7-4': 1, '7-8': 1, '7-9': 1, '7-12': 1, '8-12': 1, '8-16': 1, '9-12': 1, '9-17': 1, '9-18': 1, '9-20': 1}; // comprobado con tests/test_win.js (modo hard)
+  RS.makeHardLevel = function (w, n) {
+    var L = RS.makeLevel(w, n);
+    L.hard = true; L.enemyActs = 3;
+    // cola del modo difícil: par del test en difícil + 1 (con la cola completa original como tope)
+    var full = RS.makeLevel(w, n, RS.LEVEL_FIX[w + '-' + n] || 0).arms, ph = RS.par(w, n, true);
+    L.arms = ph ? full.slice(0, Math.min(full.length, ph + 1 + (L.boss ? 1 : 0))) : full; L.par = ph || 0;
+    L.racs.forEach(function (r) { r.hpMul = r.boss ? 1.4 : 1.6; });
+    return L;
+  };
+
+  // Modo Montaña: hay que disparar en parábola por encima de una muralla de roca, a una fortaleza en lo alto de un acantilado, o las dos cosas
+  RS.MOUNT_LEVELS = 10;
+  RS.PAR_MOUNT = { 1: '1112122232', 2: '1212222223', 3: '3122332422', 4: '2322332331', 5: '2115253445', 6: '1221132523', 7: '1511232232', 8: '1112132431', 9: '2122241445', 10: '2211213232', 11: '1132312212', 12: '3511236455', 13: '1321233311', 14: '1111415445', 15: '5111151412', 16: '1152127354', 17: '1221312131', 18: '1112512231' };
+  RS.MOUNT_FIX = {'4-1': 1, '4-3': 1, '4-4': 3, '6-8': 3, '16-9': 2, '18-5': 3, '18-7': 1, '9-6': 2, '9-10': 4, '10-7': 1, '12-7': 1, '12-9': 3, '5-6': 1, '16-3': 1, '17-1': 3}; // obstáculos más bajos: el test no los ganaba
+  RS.makeMountainLevel = function (w, n) {
+    var fx0 = RS.MOUNT_FIX[w + '-' + n] || 0, L = RS.makeLevel(w, n * 2 - 1, (fx0 >= 4 ? 260 : fx0 >= 3 ? 160 : 60) + n), type = ['wall', 'cliff', 'both'][(n - 1) % 3], terrain = [];
+    var x0 = Math.min.apply(null, L.pieces.map(function (p) { return RS.pieceAABB(p).x0; }));
+    if (type !== 'wall') {
+      var fx = Math.min(2, fx0), H = Math.max(1, Math.round((1.6 + n * 0.22) * 2) / 2 - fx), a = x0 - 1.2, b = L.end + 2;
+      L.pieces.forEach(function (p) { p.y += H; }); L.gems.forEach(function (g) { g.y += H; }); L.racs.forEach(function (r) { r.y += H; });
+      terrain.push({ pts: [[a - 1.6, 0], [b, 0], [b, H], [a, H]], top: H });
+      L.cliff = H;
+    }
+    if (type !== 'cliff') {
+      var h = Math.max(2.5, Math.round((3 + n * 0.38) * 2) / 2 - 1.5 * Math.min(2, fx0)), cx = Math.min(11.5, x0 - 4.5), bw = 2.2 + h * 0.25;
+      terrain.push({ pts: [[cx - bw, 0], [cx + bw, 0], [cx + 0.7, h], [cx - 0.7, h]], top: h });
+      L.wall = h;
+    }
+    L.terrain = terrain; L.mount = type; L.boss = false; L.n = n; L.mortar = true; L.ballGrav = 0.8;
+    var pm = !RS.NO_PAR && RS.PAR_MOUNT && RS.PAR_MOUNT[w] ? +RS.PAR_MOUNT[w][n - 1] || 0 : 0;
+    var full = L.arms.concat([L.arms[1] || 0]);
+    L.arms = pm ? full.slice(0, Math.min(full.length, pm + 1)) : full; L.par = pm;
+    return L;
   };
 
   // nivel de evento: fortaleza de dificultad media con los mapaches y el decorado del evento

@@ -56,10 +56,17 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     ground.createFixture(pl.Edge(V(-80, 0), V(300, 0)), { friction: 0.8 });
     ground.setUserData({ ground: true });
     this.ground = ground;
+    // terreno del Modo Montaña: polígonos convexos estáticos (murallas de roca y acantilados)
+    (layout.terrain || []).forEach(function (t) {
+      var tb = self.world.createBody({ type: 'static' });
+      tb.createFixture(pl.Polygon(t.pts.map(function (q) { return V(q[0], q[1]); })), { friction: 0.9 });
+      tb.setUserData({ ground: true, terrain: true });
+    });
     (layout.pieces || []).forEach(function (p, i) { self.addPiece(p, i); });
     (layout.gems || []).forEach(function (g, i) { self.addGem(g, i); });
     this.racs = []; (layout.racs || []).forEach(function (r, i) { self.addRac(r, i); });
     this.wind = layout.wind || 0;
+    this.ballGrav = layout.ballGrav || 1; // Modo Montaña: el mortero lanza en una parábola más alta
     if (!opts.noWeld) this.makeWelds(layout.pieces || []);
     this.world.on('post-solve', function (c, imp) { self.onPostSolve(c, imp); });
     this.world.on('pre-solve', function (c) { self.onPreSolve(c); });
@@ -91,7 +98,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     var b = this.world.createBody({ type: 'dynamic', position: V(r.x, r.y + h / 2), fixedRotation: false });
     b.createFixture(pl.Box(w / 2 * 0.9, h / 2 * 0.95), { density: T.dens * (r.boss ? 1.6 : 1), friction: 0.8, restitution: 0.05 });
     if (T.fly && !r.boss) b.setGravityScale(0);
-    var hp = r.boss ? 420 + 30 * (r.w || 1) : T.hp;
+    var hp = Math.round((r.boss ? 420 + 30 * (r.w || 1) : T.hp) * (r.hpMul || 1));
     var ud = { rac: true, idx: i, t: r.t, T: T, boss: !!r.boss, bi: r.boss ? (r.bi != null ? r.bi : RS.bossIdx(r.w || 1)) : 0, w: w, h: h, hp: hp, hp0: hp, x0: r.x, y0: r.y + h / 2, ko: false, body: b, flying: !!T.fly && !r.boss, shield: false, helmet: false, koT: 0 };
     b.setUserData(ud); this.racs.push(ud);
   };
@@ -206,6 +213,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     b.createFixture(pl.Circle(r), { density: RS.PHYS.ballDens, friction: 0.5, restitution: 0.25 });
     b.setLinearVelocity(V(Math.cos(angle) * sp, Math.sin(angle) * sp));
     b.setAngularVelocity(-8);
+    if (this.ballGrav !== 1) b.setGravityScale(this.ballGrav);
     var ud = { ball: true, arm: armIdx, body: b, r: r, used: false, mult: armIdx === 0 ? 1.25 : 1, t: 0, rest: 0, ghostT: 0, drillT: 0, magT: 0, dashT: 0, fire: false, frozenFx: 0, child: !!opts.child };
     b.setUserData(ud); this.balls.push(ud);
     return ud;

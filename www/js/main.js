@@ -63,6 +63,9 @@
 
   function totalStars() { return Object.keys(S.stars).reduce(function (a, k) { return a + S.stars[k]; }, 0); }
   function worldOpen(w) { if (S.unlockAll || w === 1) return true; return !!S.stars[(w - 1) + '-20']; }
+  function mountOpen(w) { return S.unlockAll || !!S.stars[w + '-10']; }
+  function hardOpen(w) { return S.unlockAll || !!S.stars[w + '-20']; }
+  function hardLevelOpen(w, n) { if (S.unlockAll) return true; return hardOpen(w) && (n === 1 || !!S.stars['H' + w + '-' + (n - 1)]); }
   function levelOpen(w, n) { if (S.unlockAll) return true; if (!worldOpen(w)) return false; return n === 1 || !!S.stars[w + '-' + (n - 1)]; }
   function maxWorld() { var m = 1; for (var w = 2; w <= RS.WORLDS.length; w++) if (worldOpen(w)) m = w; return m; }
   function armOpen(i) { var a = RS.ARMS[i]; if (S.unlockAll) return true; if (a.rare === 3) return !!S.stars[(i >= 12 ? '12' : '6') + '-20']; return a.world <= maxWorld(); }
@@ -131,11 +134,44 @@
   };
 
   // ---------- niveles ----------
-  var curWorld = 1;
+  var curWorld = 1, lvMode = 'n';
   SCREENS.levels = function () {
     var W = RS.WORLDS[curWorld - 1]; RS.Audio.play(W.music);
     $('lv_title').textContent = 'Mundo ' + W.id + ' · ' + W.name;
+    var ho = hardOpen(curWorld), mo = mountOpen(curWorld);
+    if ((lvMode === 'h' && !ho) || (lvMode === 'm' && !mo)) lvMode = 'n';
+    var hardMode = lvMode === 'h';
+    $('lv_modes').innerHTML = '<button class="tb' + (lvMode === 'n' ? ' sel' : '') + '" data-m="n">Normal</button>' +
+      '<button class="tb mounttab' + (lvMode === 'm' ? ' sel' : '') + (mo ? '' : ' lockedtab') + '" data-m="m">⛰ Montaña</button>' +
+      '<button class="tb hardtab' + (hardMode ? ' sel' : '') + (ho ? '' : ' lockedtab') + '" data-m="h">💀 Difícil</button>';
+    $('lv_modes').querySelectorAll('button').forEach(function (b) { b.onclick = function () {
+      if (b.dataset.m === 'h' && !ho) return toast('💀 Vence al jefe de este mundo para desbloquear el modo difícil');
+      if (b.dataset.m === 'm' && !mo) return toast('⛰ Supera el nivel 10 de este mundo para desbloquear el Modo Montaña');
+      lvMode = b.dataset.m; RS.Audio.sfx('click'); SCREENS.levels(); }; });
+    $('levels').classList.toggle('hardmode', hardMode); $('levels').classList.toggle('mountmode', lvMode === 'm');
     var g = $('levelgrid'); g.innerHTML = '';
+    if (lvMode === 'm') {
+      for (var mn = 1; mn <= RS.MOUNT_LEVELS; mn++) (function (n) {
+        var open = S.unlockAll || (mo && (n === 1 || !!S.stars['M' + curWorld + '-' + (n - 1)])), st = S.stars['M' + curWorld + '-' + n] || 0, b = document.createElement('button');
+        b.className = 'lv mount' + (open ? '' : ' locked');
+        var stars = ''; for (var i = 0; i < 3; i++) stars += '<img src="img/ui/star' + (i < st ? 1 : 0) + '.webp">';
+        b.innerHTML = n + (open ? '<div class="st">' + stars + '</div>' : '');
+        b.onclick = function () { if (!open) return toast('Supera el nivel anterior de Montaña'); RS.Audio.sfx('click'); startMount(curWorld, n); };
+        g.appendChild(b);
+      })(mn);
+      return;
+    }
+    if (hardMode) {
+      for (var hn = 1; hn <= 20; hn++) (function (n) {
+        var open = hardLevelOpen(curWorld, n), st = S.stars['H' + curWorld + '-' + n] || 0, b = document.createElement('button');
+        b.className = 'lv hard' + (n === 20 ? ' boss' : '') + (open ? '' : ' locked');
+        var stars = ''; for (var i = 0; i < 3; i++) stars += '<img src="img/ui/star' + (i < st ? 1 : 0) + '.webp">';
+        b.innerHTML = (n === 20 ? '☠' : n) + (open ? '<div class="st">' + stars + '</div>' : '');
+        b.onclick = function () { if (!open) return toast('Supera el nivel anterior en difícil'); RS.Audio.sfx('click'); startHard(curWorld, n); };
+        g.appendChild(b);
+      })(hn);
+      return;
+    }
     for (var n = 1; n <= 20; n++) (function (n) {
       var open = levelOpen(curWorld, n), st = S.stars[curWorld + '-' + n] || 0, b = document.createElement('button');
       b.className = 'lv' + (n === 20 ? ' boss' : '') + (open ? '' : ' locked');
@@ -193,6 +229,19 @@
     if (!skipPrep && (w > 1 || n >= 4)) return RS.Extras.prep('Nivel ' + w + '-' + n + (n === 20 ? ' · JEFE' : ''), function (b) { startLevel(w, n, true, b); });
     startGame(lvl, { kind: 'camp', boost: boost || {}, w: w, n: n, style: 'bandido', bg: W.bg, music: levelMusic(w, n), label: w + '-' + n + (n === 20 ? ' JEFE' : '') });
   }
+  function startMount(w, n, skipPrep, boost) {
+    var W = RS.WORLDS[w - 1];
+    if (!skipPrep) return RS.Extras.prep('⛰ Montaña ' + w + '-' + n, function (b) { startMount(w, n, true, b); });
+    startGame(RS.makeMountainLevel(w, n), { kind: 'mount', boost: boost || {}, w: w, n: n, style: 'bandido', bg: W.bg, music: levelMusic(w, n + 3), label: '⛰ ' + w + '-' + n });
+    if (!S.seenMount) { S.seenMount = 1; persist(); setTimeout(function () { toast('⛰ Modo Montaña: apunta alto y dispara en parábola por encima de la roca'); }, 900); }
+  }
+  function startHard(w, n, skipPrep, boost) {
+    var W = RS.WORLDS[w - 1];
+    if (!skipPrep) return RS.Extras.prep('💀 Difícil ' + w + '-' + n + (n === 20 ? ' · JEFE' : ''), function (b) { startHard(w, n, true, b); });
+    startGame(RS.makeHardLevel(w, n), { kind: 'hard', boost: boost || {}, w: w, n: n, style: 'bandido', bg: W.bg, music: levelMusic(w, n), label: '💀 ' + w + '-' + n + (n === 20 ? ' JEFE' : '') });
+    if (!S.seenHard) { S.seenHard = 1; persist(); setTimeout(function () { toast('💀 Modo difícil: un armadillo menos, mapaches más duros y hasta 3 acciones por turno. ¡Monedas dobles!'); }, 900); }
+  }
+
   // ---------- eventos de temporada ----------
   var EV_GIFT = { 2: 0, 4: 1, 5: 2, 7: 3, 9: 4, 10: 5 }; // nivel -> skin del evento que regala al superarlo
   function evOpen(ev) { return S.unlockAll || RS.eventActive(ev); }
@@ -275,8 +324,8 @@
   $('p_mus').onclick = function () { S.vol.music = S.vol.music ? 0 : 0.6; RS.Audio.setVol('music', S.vol.music); persist(); syncAudioBtns(); };
   $('p_next').onclick = function () { RS.Audio.init(); nextTrack(); };
   $('p_snd').onclick = function () { S.vol.sfx = S.vol.sfx ? 0 : 0.8; RS.Audio.setVol('sfx', S.vol.sfx); persist(); syncAudioBtns(); };
-  function retry() { var c = ctxGame; if (c.defense || c.kind === 'camp') return startLevel(c.w, c.n); if (c.kind === 'event') return startEvent(c.ev, c.n, true, {}); if (c.kind === 'league') return startLeague(); startGame(c.kind === 'camp' ? RS.makeLevel(c.w, c.n) : c.kind === 'league' ? rivalLevel() : ownLevel(), c); }
-  function back() { var k = ctxGame && ctxGame.kind; show(k === 'camp' ? 'levels' : k === 'event' ? 'events' : k === 'league' ? 'league' : 'build'); }
+  function retry() { var c = ctxGame; if (c.defense || c.kind === 'camp') return startLevel(c.w, c.n); if (c.kind === 'event') return startEvent(c.ev, c.n, true, {}); if (c.kind === 'hard') return startHard(c.w, c.n, true, {}); if (c.kind === 'mount') return startMount(c.w, c.n, true, {}); if (c.kind === 'league') return startLeague(); startGame(c.kind === 'camp' ? RS.makeLevel(c.w, c.n) : c.kind === 'league' ? rivalLevel() : ownLevel(), c); }
+  function back() { var k = ctxGame && ctxGame.kind; show(k === 'camp' || k === 'hard' || k === 'mount' ? 'levels' : k === 'event' ? 'events' : k === 'league' ? 'league' : 'build'); }
 
   function onEnd(r) {
     var c = ctxGame, txt = ''; $('hint').style.opacity = 0; $('armtip').classList.remove('show');
@@ -301,6 +350,21 @@
         if (c.n < 20 || c.w < RS.WORLDS.length) $('r_next').style.display = '';
         if (c.n === 20 && c.w < RS.WORLDS.length) txt += '<br>¡Mundo ' + (c.w + 1) + ' desbloqueado!';
       } else txt += '<br>Te quedaste sin armadillos. ¡Prueba otro orden o rompe una jaula para tener uno más!';
+    } else if (c.kind === 'mount') {
+      var mk = 'M' + c.w + '-' + c.n;
+      if (r.win) {
+        var mp = S.stars[mk] || 0, mc = 30 + (r.stars - mp > 0 ? (r.stars - mp) * 20 : 0) + (c.n === RS.MOUNT_LEVELS && !mp ? 200 : 0);
+        S.stars[mk] = Math.max(mp, r.stars); S.coins += mc; txt += '<br>+' + mc + ' monedas';
+        if (c.n < RS.MOUNT_LEVELS) $('r_next').style.display = '';
+      } else txt += '<br>Apunta más alto: el arco tiene que pasar por encima de la roca.';
+    } else if (c.kind === 'hard') {
+      var hk = 'H' + c.w + '-' + c.n;
+      if (r.win) {
+        var hp0 = S.stars[hk] || 0, hc = 2 * (20 + (r.stars - hp0 > 0 ? (r.stars - hp0) * 15 : 0) + (c.n === 20 ? 150 : 0));
+        S.stars[hk] = Math.max(hp0, r.stars); S.coins += hc; txt += '<br>💀 Monedas dobles: +' + hc;
+        if (c.n === 20 && !hp0) { S.chests.push(3); txt += '<br>🎁 ¡Cofre legendario en la Tienda!'; }
+        if (c.n < 20) $('r_next').style.display = '';
+      } else txt += '<br>El modo difícil no perdona: prueba otro orden y usa las habilidades.';
     } else if (c.kind === 'event') {
       var ek = evKey(c.ev, c.n), E = RS.EVENTS[c.ev];
       if (r.win) {
@@ -318,6 +382,8 @@
       txt += '<br>' + (r.win ? 'Tu fortaleza ha caído: refuérzala.' : '¡Tu fortaleza ha resistido!');
     }
     if (c.defense) txt = defTxt + (r.win ? '<br>¡Has defendido tu fortaleza! +' + (20 + r.stars * 15) + ' monedas' : '<br>Refuerza tu fortaleza en «Mi fortaleza» y vuelve a intentarlo.');
+    var parN = c.level && c.level.par;
+    if (parN && !c.defense) txt += '<br>🎯 ★★★ con ' + parN + ' armadillo' + (parN > 1 ? 's' : '') + ' · has usado ' + r.used + (r.win && r.used > parN ? ' — ¡busca un tiro mejor!' : '');
     persist(); RS.Extras.levelEnd(c, r);
     $('r_text').innerHTML = txt; $('result').classList.add('show');
   }
@@ -327,6 +393,8 @@
     $('result').classList.remove('show'); var c = ctxGame;
     if (c.kind === 'camp') { var w = c.w, n = c.n + 1; if (n > 20) { w++; n = 1; } curWorld = w; startLevel(w, n); }
     else if (c.kind === 'event') startEvent(c.ev, c.n + 1);
+    else if (c.kind === 'hard') startHard(c.w, c.n + 1);
+    else if (c.kind === 'mount') startMount(c.w, c.n + 1);
     else if (c.kind === 'league') startLeague();
   };
 
@@ -514,7 +582,7 @@
   SCREENS.settings = function () {
     var jb = $('s_jb'); jb.innerHTML = '';
     TRACKS.forEach(function (t) { var b = document.createElement('button'); b.className = 'tb' + (RS.Audio.cur === t[0] ? ' sel' : ''); b.textContent = '▶ ' + t[1]; b.onclick = function () { RS.Audio.init(); playTrack(t[0]); SCREENS.settings(); }; jb.appendChild(b); });
-    $('s_mus').value = S.vol.music; $('s_sfx').value = S.vol.sfx; $('s_style').value = S.musicStyle; $('s_can').value = S.cannon; $('s_fx').value = S.fx === false ? '0' : '1'; $('s_vib').value = S.vib === false ? '0' : '1';
+    $('s_mus').value = S.vol.music; $('s_sfx').value = S.vol.sfx; $('s_style').value = S.musicStyle; $('s_can').value = S.cannon; $('s_fx').value = S.fx === false ? '0' : '1'; $('s_zoom').value = S.zoomFx === false ? '0' : '1'; $('s_vib').value = S.vib === false ? '0' : '1';
     var sc = $('s_clan'); sc.innerHTML = ''; Object.keys(RS.CLANS).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = RS.CLANS[k].short; sc.appendChild(o); }); sc.value = S.clan;
     $('s_unlock').textContent = S.unlockAll ? 'Bloquear de nuevo' : 'Desbloquear todo (pruebas)';
   };
@@ -525,6 +593,7 @@
   $('s_clan').onchange = function () { S.clan = this.value; persist(); toast('Clan: ' + RS.CLANS[S.clan].short); };
   $('s_vib').onchange = function () { S.vib = this.value === '1'; persist(); RS.vib(80); };
   $('s_fx').onchange = function () { S.fx = this.value === '1'; persist(); };
+  $('s_zoom').onchange = function () { S.zoomFx = this.value === '1'; persist(); };
   $('s_can').onchange = function () { S.cannon = +this.value; persist(); };
   $('s_unlock').onclick = function () { S.unlockAll = !S.unlockAll; persist(); SCREENS.settings(); toast(S.unlockAll ? 'Todo desbloqueado' : 'Bloqueado'); };
   $('s_reset').onclick = function () { ask('¿Borrar toda la partida?', function () { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); }); };
@@ -552,5 +621,5 @@
     show('title');
     RS.loadBg(S.clan || 'w1');
   });
-  RS._dbg = { show: show, startLevel: startLevel, startEvent: startEvent, get game() { return game; }, get builder() { return builder; } };
+  RS._dbg = { show: show, startLevel: startLevel, startEvent: startEvent, startHard: startHard, startMount: startMount, get game() { return game; }, get builder() { return builder; } };
 })(RS);

@@ -167,6 +167,13 @@
     { id: 'lv5', name: 'Veterano', d: 'Sube un armadillo a nivel 5', rw: 300, chk: function (s) { return Object.keys(s.armLv).some(function (k) { return s.armLv[k] >= 5; }); } },
     { id: 'legchest', name: 'Tesoro legendario', d: 'Abre un cofre legendario', rw: 150, chk: function (s) { return !!s.st.chest3; } },
     { id: 'skin', name: 'A la moda', d: 'Consigue una skin', rw: 100, chk: function (s) { return s.skins.length > 0; } },
+    { id: 'hard1', name: 'Sin piedad', d: 'Gana un nivel en modo difícil', rw: 150, chk: function (s) { return Object.keys(s.stars).some(function (k) { return k[0] === 'H'; }); } },
+    { id: 'hardboss', name: 'Pesadilla', d: 'Vence a un jefe en modo difícil', rw: 400, chk: function (s) { return Object.keys(s.stars).some(function (k) { return /^H\d+-20$/.test(k); }); } },
+    { id: 'event', name: 'De temporada', d: 'Completa un evento entero', rw: 300, chk: function (s) { return !!(s.stars['ev:hal-10'] || s.stars['ev:nav-10']); } },
+    { id: 'multiko', name: 'Dos de un tiro', d: 'Tumba 2 mapaches con un solo armadillo', rw: 120, chk: function (s) { return (s.st.multiko || 0) >= 2; } },
+    { id: 'collapse', name: '¡Derrumbe!', d: 'Rompe 8 piezas con un solo tiro', rw: 150, chk: function (s) { return (s.st.collapse || 0) >= 8; } },
+    { id: 'mount', name: 'Rey de la montaña', d: 'Completa los 10 niveles de Montaña de un mundo', rw: 300, chk: function (s) { return Object.keys(s.stars).some(function (k) { return /^M\d+-10$/.test(k); }); } },
+    { id: 'sea', name: 'Lobo de mar', d: 'Llega a los Mares Bandidos', rw: 250, chk: function (s) { return !!s.stars['12-20']; } },
     { id: 'abil100', name: 'Maestro de habilidades', d: 'Usa 100 habilidades', rw: 200, chk: function (s) { return (s.st.abil || 0) >= 100; } },
     { id: 'gems50', name: 'Guardián de gemas', d: 'Recupera 50 gemas', rw: 200, chk: function (s) { return (s.st.gem || 0) >= 50; } },
   ];
@@ -197,6 +204,8 @@
     else if (k === 'gem') { s.st.gem = (s.st.gem || 0) + 1; prog('gem'); }
     else if (k === 'combo') { s.st.comboMax = Math.max(s.st.comboMax || 0, v); prog('combo'); }
     else if (k === 'cage') s.st.cage = (s.st.cage || 0) + 1;
+    else if (k === 'multiko') s.st.multiko = Math.max(s.st.multiko || 0, v);
+    else if (k === 'collapse') s.st.collapse = Math.max(s.st.collapse || 0, v);
     else if (k === 'chest' && v === 3) s.st.chest3 = 1;
     save(); E.checkAch();
   };

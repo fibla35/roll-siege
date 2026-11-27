@@ -17,14 +17,15 @@ function simulate(level, shots, extra) {
   }
   return { win: false, gems: P.racs.length ? P.racsLeft() : P.gemsLeft(), score: P.score, used: all.length };
 }
-var CANDS = [];
-[0.15, 0.35, 0.55, 0.75, 0.95].forEach(function (a) { for (var p = 0.45; p <= 1.001; p += 0.05) CANDS.push({ a: a, p: p }); });
+var CANDS = []; if (process.argv[5] === 'mount' && process.env.NOPAR) RS.NO_PAR = true;
+(process.argv[5] === 'mount' || process.argv[2] === 'mount' ? [0.45, 0.65, 0.85, 1.0, 1.15, 1.3, 1.42] : [0.15, 0.35, 0.55, 0.75, 0.95]).forEach(function (a) { for (var p = 0.45; p <= 1.001; p += 0.05) CANDS.push({ a: a, p: p }); });
 
 var sample = process.argv[2] === 'all' ? null : [1, 4, 8, 12, 16, 20];
 var res = [], t0 = Date.now();
-for (var w = +(process.argv[3] || 1); w <= RS.WORLDS.length; w++) for (var n = 1; n <= 20; n++) {
+for (var w = +(process.argv[3] || 1); w <= +(process.argv[4] || RS.WORLDS.length); w++) for (var n = 1; n <= 20; n++) {
   if (sample && sample.indexOf(n) < 0) continue;
-  var L = RS.makeLevel(w, n), shots = [], best = null;
+  if (process.argv[5] === 'mount' && n > RS.MOUNT_LEVELS) continue;
+  var L = process.argv[5] === 'hard' ? RS.makeHardLevel(w, n) : process.argv[5] === 'mount' ? RS.makeMountainLevel(w, n) : RS.makeLevel(w, n), shots = [], best = null;
   for (var k = 0; k < L.arms.length; k++) {
     best = null;
     for (var c = 0; c < CANDS.length; c++) {
