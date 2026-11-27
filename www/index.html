@@ -20,7 +20,7 @@
 <div id="title" class="screen bgimg" style="background-image:url(img/title.webp)">
   <img src="img/ui/logo.webp" class="logo-big" alt="Roll Siege">
   <button class="btn green big" data-go="start">¡Jugar!</button>
-  <div class="ver">v0.2 prueba</div>
+  <div class="ver">v0.3 prueba</div>
 </div>
 
 <div id="clan" class="screen dim">
@@ -41,7 +41,36 @@
     <button class="card" data-go="league"><img src="img/ui/i_attack.webp"><b>Liga</b><span>Asalta fortalezas rivales</span></button>
     <button class="card" data-go="arms"><img src="img/ui/i_chest.webp"><b>Armadillos</b><span>Tu colección</span></button>
   </div>
+  <div class="homerow">
+    <button class="hbtn" data-go="shop"><img src="img/ui/i_shop.webp"><span>Tienda</span><i class="dot" id="hb_shop"></i></button>
+    <button class="hbtn" data-go="missions"><img src="img/ui/i_trophy.webp"><span>Misiones</span><i class="dot" id="hb_miss"></i></button>
+    <button class="hbtn" data-go="achievements"><img src="img/ui/star1.webp"><span>Logros</span><i class="dot" id="hb_ach"></i></button>
+  </div>
 </div>
+
+<div id="shop" class="screen dim">
+  <div class="topbar"><button class="back" data-go="home" aria-label="Atrás"><span>❮</span></button><h2>Tienda</h2><span class="pill"><img src="img/ui/coin.webp"><b id="sh_coins">0</b></span></div>
+  <p class="small">Los cofres dan monedas y cartas para subir de nivel tus armadillos (en Armadillos). Los mejores pueden traer skins para Bolo.</p>
+  <div id="shopgrid"></div>
+</div>
+
+<div id="missions" class="screen dim">
+  <div class="topbar"><button class="back" data-go="home" aria-label="Atrás"><span>❮</span></button><h2>Misiones diarias</h2></div>
+  <div class="panel wide"><div id="misslist"></div>
+  <button class="btn green" id="miss_bonus" style="display:none">🎁 ¡Todas hechas! Cofre de plata</button>
+  <div class="small" id="miss_time"></div></div>
+</div>
+
+<div id="achievements" class="screen dim">
+  <div class="topbar"><button class="back" data-go="home" aria-label="Atrás"><span>❮</span></button><h2>Logros</h2><span class="pill"><b id="ach_count">0</b></span></div>
+  <div id="achlist"></div>
+</div>
+
+<div id="chestm" class="modal"><div class="panel">
+  <img id="chest_img" class="chestimg" src="img/ui/chest0.webp">
+  <div id="chest_res" class="chestres"></div>
+  <button class="btn green" id="chest_ok">¡Genial!</button>
+</div></div>
 
 <div id="map" class="screen bgimg" style="background-image:url(img/map.webp)">
   <div class="topbar"><button class="back" data-go="home" aria-label="Atrás"><span>❮</span></button><span class="pill"><img src="img/ui/star1.webp"><b id="m_stars">0</b></span></div>
@@ -116,10 +145,11 @@
     <label>Efectos <input type="range" id="s_sfx" min="0" max="1" step="0.05"></label>
     <label>Estilo de música <select id="s_style"><option value="mezcla">Mezcla (cada mundo la suya)</option><option value="dnb">Drum &amp; bass con voces</option><option value="chip">8 bits clásico</option><option value="tranquila">Tranquila</option></select></label>
     <label>Clan <select id="s_clan"></select></label>
+    <label>Vibración <select id="s_vib"><option value="1">Activada</option><option value="0">Desactivada</option></select></label>
     <label>Clima y efectos <select id="s_fx"><option value="1">Activados</option><option value="0">Desactivados</option></select></label>
     <label>Nivel del cañón (pruebas) <select id="s_can"><option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option></select></label>
     <div class="row"><button class="btn blue" id="s_unlock">Desbloquear todo (pruebas)</button><button class="btn red" id="s_reset">Borrar partida</button></div>
-    <div class="small">Música por código · Roll Siege v0.2</div>
+    <div class="small">Música por código · Roll Siege v0.3</div>
   </div><div class="setcol jbcol"><div class="jbt">Tocadiscos (toca para escuchar)</div><div id="s_jb" class="jb"></div>
     </div></div></div>
 </div>
@@ -139,6 +169,7 @@
 <script src="js/audio.js"></script>
 <script src="js/game.js"></script>
 <script src="js/builder.js"></script>
+<script src="js/extras.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

@@ -106,6 +106,7 @@ var RS = typeof RS !== 'undefined' ? RS : {};
   );
   // sprite de un armadillo: f = fotograma de animación (0..7) o 'ball'
   RS.armSprite = function (a, f) {
+    if (a === 0 && RS.save && RS.save.skin >= 0 && RS.atlas && RS.atlas.arm_skins) return f === 'ball' ? ['arm_skins', RS.save.skin * 2 + 1] : f === 'abil' ? ['arm_abil', 0] : ['arm_skins', RS.save.skin * 2];
     if (a < 12) return f === 'ball' ? ['arm_master', 12 + a] : f === 'abil' ? ['arm_abil', a] : ['arm_anim' + Math.floor(a / 3), (a % 3) * 8 + f];
     var b = a - 12;
     if (f === 'ball') return ['arm2_master', 12 + b];

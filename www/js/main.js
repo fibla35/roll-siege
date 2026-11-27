@@ -21,6 +21,7 @@
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(RS.save)); } catch (e) {} }
   RS.persist = persist;
   var S = RS.save;
+  RS.curScreen = function () { return cur; };
 
   // ---------- carga de imágenes ----------
   RS.loadImg = function (name, src) {
@@ -64,6 +65,7 @@
   function levelOpen(w, n) { if (S.unlockAll) return true; if (!worldOpen(w)) return false; return n === 1 || !!S.stars[w + '-' + (n - 1)]; }
   function maxWorld() { var m = 1; for (var w = 2; w <= RS.WORLDS.length; w++) if (worldOpen(w)) m = w; return m; }
   function armOpen(i) { var a = RS.ARMS[i]; if (S.unlockAll) return true; if (a.rare === 3) return !!S.stars[(i >= 12 ? '12' : '6') + '-20']; return a.world <= maxWorld(); }
+  RS.Extras.armOpen = armOpen; RS.Extras.init();
   function matOpen(m) { return S.unlockAll || RS.MATS[m].lvl <= maxWorld(); }
 
   var SCREENS = {};
@@ -92,7 +94,7 @@
     RS.Audio.play('RSM01');
     $('home').style.backgroundImage = 'url(img/bg_' + S.clan + '.webp)';
     $('h_coins').textContent = S.coins; $('h_troph').textContent = S.trophies; $('h_stars').textContent = totalStars();
-    $('h_fname').textContent = S.name;
+    $('h_fname').textContent = S.name; RS.Extras.daily(); RS.Extras.badges();
   };
 
   // ---------- mapa ----------
@@ -145,7 +147,7 @@
       if (game) game.destroy();
       game = new RS.Game(cv, level, {
         style: ctx.style, clan: S.clan, bg: bgKey, cannonLvl: S.cannon, defense: !!ctx.defense,
-        onQueue: drawQueue, onTick: hudTick, onEnd: onEnd,
+        onQueue: drawQueue, onTick: hudTick, onEnd: onEnd, onStat: function (k, v) { RS.Extras.stat(k, v); },
         onAbility: function () { $('hint').style.opacity = 0; },
         onDebuff: function (t) { var el = $('debuff'); if (!t) $('splat').classList.remove('show'); if (t) { el.textContent = t; el.classList.add('show'); } else el.classList.remove('show'); },
         onSplat: function (on) { var el = $('splat'); if (on) { el.innerHTML = ''; for (var i = 0; i < 5; i++) { var sp = document.createElement('i'); sp.style.left = (10 + Math.random() * 70) + '%'; sp.style.top = (15 + Math.random() * 55) + '%'; sp.style.transform = 'scale(' + (0.7 + Math.random() * 0.8) + ') rotate(' + Math.random() * 360 + 'deg)'; el.appendChild(sp); } el.classList.add('show'); toast('🥧 ¡Tartazo! Se limpia al disparar'); } else el.classList.remove('show'); },
@@ -259,7 +261,7 @@
       txt += '<br>' + (r.win ? 'Tu fortaleza ha caído: refuérzala.' : '¡Tu fortaleza ha resistido!');
     }
     if (c.defense) txt = defTxt + (r.win ? '<br>¡Has defendido tu fortaleza! +' + (20 + r.stars * 15) + ' monedas' : '<br>Refuerza tu fortaleza en «Mi fortaleza» y vuelve a intentarlo.');
-    persist();
+    persist(); RS.Extras.levelEnd(c, r);
     $('r_text').innerHTML = txt; $('result').classList.add('show');
   }
   $('r_retry').onclick = function () { $('result').classList.remove('show'); retry(); };
@@ -426,10 +428,23 @@
       var aspr = RS.armSprite(i, 0), sh = aspr[0], idx = aspr[1]; var asp = RS.spAspect(sh, idx); RS.drawSp(c.getContext('2d'), sh, idx, 80, 80, asp > 1 ? 150 : 150 * asp, asp > 1 ? 150 / asp : 150);
       d.appendChild(c);
       d.insertAdjacentHTML('beforeend', '<b>' + a.name + '</b><span class="rr r' + a.rare + '">' + RS.RARE[a.rare] + '</span><span class="d">' + (open ? a.desc : (a.rare === 3 ? (i >= 12 ? 'Vence al Rey Mapache (12-20)' : 'Vence al jefe del mundo 6') : 'Se desbloquea en el mundo ' + a.world)) + '</span>');
+      if (open) {
+        var I = RS.Extras.armInfo(i);
+        d.insertAdjacentHTML('beforeend', '<span class="lvl">Nv ' + I.lv + (I.max ? ' · MÁX' : ' · 🃏 ' + I.have + '/' + I.need) + '</span>');
+        if (!I.max) { var ub = document.createElement('button'); ub.className = 'btn sm ' + (I.can ? 'green' : 'blue'); ub.innerHTML = 'Mejorar <img src="img/ui/coin.webp">' + I.cost; ub.onclick = function () { RS.Extras.upgrade(i); SCREENS.arms(); }; d.appendChild(ub); }
+        if (i === 0) {
+          var sk = document.createElement('div'); sk.className = 'skins';
+          [-1].concat(S.skins.slice().sort()).forEach(function (k) { var b = document.createElement('button'); b.className = 'tb' + (S.skin === k ? ' sel' : ''); b.textContent = k < 0 ? 'Normal' : RS.Extras.SKINS[k]; b.onclick = function () { S.skin = k; persist(); RS.Audio.sfx('click'); SCREENS.arms(); }; sk.appendChild(b); });
+          d.appendChild(sk);
+        }
+      }
       g.appendChild(d);
     });
   };
 
+  SCREENS.shop = function () { RS.Extras.shop(); };
+  SCREENS.missions = function () { RS.Extras.missions(); };
+  SCREENS.achievements = function () { RS.Extras.achievements(); };
   // ---------- ajustes ----------
   // tocadiscos: escuchar y elegir cualquier canción
   var TRACKS = [['RSM01', 'Tema principal'], ['RSM02', 'Taller'], ['RSM03', 'Bosque del Saqueo (DnB)'], ['RSM04', 'Dunas (8 bits)'], ['RSM05', 'Cumbres Heladas (DnB)'], ['RSM06', 'Volcán (DnB)'], ['RSM07', 'Puerto (8 bits)'], ['RSM08', 'Rapiñópolis (DnB)'], ['RSM09', 'Jefe (DnB)'], ['RSM10', 'Liga (DnB)'], ['RSM11', 'Sol Naciente'], ['RSM12', 'La Frontera'], ['RSM13', 'Sol de Jade'], ['RSM15', 'Cannon Rush (DnB)'], ['RSM16', 'Armadillo Roll (DnB)'], ['RSM17', 'Gem Hunter (DnB)'], ['RSM18', 'Powder Keg (DnB)'], ['RSM19', 'Rolling Thunder (DnB)'], ['RSM20', 'Bandit Breakbeat (DnB)']];
@@ -440,7 +455,7 @@
   SCREENS.settings = function () {
     var jb = $('s_jb'); jb.innerHTML = '';
     TRACKS.forEach(function (t) { var b = document.createElement('button'); b.className = 'tb' + (RS.Audio.cur === t[0] ? ' sel' : ''); b.textContent = '▶ ' + t[1]; b.onclick = function () { RS.Audio.init(); playTrack(t[0]); SCREENS.settings(); }; jb.appendChild(b); });
-    $('s_mus').value = S.vol.music; $('s_sfx').value = S.vol.sfx; $('s_style').value = S.musicStyle; $('s_can').value = S.cannon; $('s_fx').value = S.fx === false ? '0' : '1';
+    $('s_mus').value = S.vol.music; $('s_sfx').value = S.vol.sfx; $('s_style').value = S.musicStyle; $('s_can').value = S.cannon; $('s_fx').value = S.fx === false ? '0' : '1'; $('s_vib').value = S.vib === false ? '0' : '1';
     var sc = $('s_clan'); sc.innerHTML = ''; Object.keys(RS.CLANS).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = RS.CLANS[k].short; sc.appendChild(o); }); sc.value = S.clan;
     $('s_unlock').textContent = S.unlockAll ? 'Bloquear de nuevo' : 'Desbloquear todo (pruebas)';
   };
@@ -449,6 +464,7 @@
   $('s_sfx').onchange = function () { RS.Audio.sfx('gem'); };
   $('s_style').onchange = function () { S.musicStyle = this.value; persist(); var c = RS.Audio.cur; RS.Audio.cur = null; RS.Audio.play('RSM01'); };
   $('s_clan').onchange = function () { S.clan = this.value; persist(); toast('Clan: ' + RS.CLANS[S.clan].short); };
+  $('s_vib').onchange = function () { S.vib = this.value === '1'; persist(); RS.vib(80); };
   $('s_fx').onchange = function () { S.fx = this.value === '1'; persist(); };
   $('s_can').onchange = function () { S.cannon = +this.value; persist(); };
   $('s_unlock').onclick = function () { S.unlockAll = !S.unlockAll; persist(); SCREENS.settings(); toast(S.unlockAll ? 'Todo desbloqueado' : 'Bloqueado'); };

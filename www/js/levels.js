@@ -151,8 +151,10 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     var weather = WX[w] || null;
     if ([1, 2, 5, 7, 10].indexOf(w) >= 0 && n % 4 === 2) weather = 'rain';
     if (w === 3 && n % 5 === 4) weather = 'blizzard';
+    var tod = [6, 7, 11].indexOf(w) >= 0 ? null : n % 6 === 3 ? 'dusk' : n % 6 === 5 ? 'night' : null;
+    if (weather === 'storm' && !tod) tod = 'dusk';
     if (boss) weather = w === 3 ? 'blizzard' : w === 4 || w === 9 || w === 12 ? WX[w] : 'storm';
-    return { w: w, n: n, boss: boss, weather: weather, pieces: B.pieces, gems: B.gems, racs: racs, wind: Math.round(wind * 10) / 10, arms: arms, end: boss ? x + 1.5 : x, stars: [1, three * 0.5, three * 0.8] };
+    return { w: w, n: n, boss: boss, weather: weather, tod: tod, pieces: B.pieces, gems: B.gems, racs: racs, wind: Math.round(wind * 10) / 10, arms: arms, end: boss ? x + 1.5 : x, stars: [1, three * 0.5, three * 0.8] };
   };
 
   // fortaleza rival para la Liga (estilo de clan aleatorio)

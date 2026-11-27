@@ -2,6 +2,8 @@
 (function (RS) {
   var TAU = Math.PI * 2;
   RS.img = {}; RS.atlas = {};
+  RS.vib = function (ms) { try { if (RS.save && RS.save.vib !== false && navigator.vibrate) navigator.vibrate(ms); } catch (e) {} };
+  function stat(self, k, v) { if (self.o.onStat) self.o.onStat(k, v); }
 
   RS.drawSp = function (ctx, sheet, idx, x, y, w, h, ang, flip, alpha) {
     var im = RS.img[sheet], r = RS.atlas[sheet] && RS.atlas[sheet][idx];
@@ -340,7 +342,8 @@
     var g = this.cannonGeo(), pw = this.power * (over ? 1.08 : 1);
     if (this.cap) pw = Math.min(pw, this.cap);
     this.cap = 0; this.jitter = 0; if (this.o.onDebuff) this.o.onDebuff(null);
-    this.phys.launch(q.arm, g.muzzle, ang, pw);
+    var ub = this.phys.launch(q.arm, g.muzzle, ang, pw); ub.mult *= 1 + 0.08 * (((RS.save && RS.save.armLv && RS.save.armLv[q.arm]) || 1) - 1);
+    this.lastArm = q.arm; this.combo = 0; this.comboPts = 0; RS.vib(30); stat(this, 'shot', q.arm);
     q.used = true; this.state = 'flight'; this.flightT = 0; this.recoil = 1; this.shake = 10 * this.dpr;
     RS.Audio.sfx('cannon', 0.9);
     this.parts.push({ fx: 'pow', fr: [6, 7, 8, 9, 10, 11], x: g.muzzle.x + g.dir.x * 0.9, y: g.muzzle.y + g.dir.y * 0.9, w: 2.4, life: 0.45, t: 0, ang: -ang });
@@ -352,7 +355,7 @@
   Game.prototype.abilityFx = function (kind, b) {
     var p = b.body.getPosition();
     var snd = { stick: 'pour', tornado: 'whoosh', bubble: 'magic', cut: 'zap', magma: 'explode', mirror: 'magic', lead: 'whoosh', rocket: 'cannon', vine: 'wood_hit', shard: 'glass_break', astral: 'magic', royal: 'star', slam: 'whoosh', split: 'magic', drill: 'zap', boom: 'explode', bounce: 'bounce', magnet: 'magic', grow: 'magic', boomerang: 'whoosh', freeze: 'ice_break', meteor: 'explode', dash: 'zap', ghost: 'magic' }[kind];
-    RS.Audio.sfx(snd, 0.8);
+    RS.Audio.sfx(snd, 0.8); stat(this, 'abil', b.arm); if (kind === 'boom' || kind === 'meteor' || kind === 'magma') RS.vib(70);
     var asp0 = RS.armSprite(b.arm, 'abil'); this.parts.push({ fx: asp0[0], fr: [asp0[1]], x: p.x, y: p.y, w: 2.2, life: 0.35, t: 0, fade: true });
     if (kind === 'freeze') for (var i = 0; i < 8; i++) this.parts.push({ fx: 'fx', fr: [12, 13, 14, 15], x: p.x + (Math.random() - 0.5) * 6, y: p.y + (Math.random() - 0.5) * 5, w: 1.6, life: 0.7, t: 0 });
     if (this.o.onAbility) this.o.onAbility(kind);
@@ -361,6 +364,7 @@
   // ---------- bucle ----------
   Game.prototype.frame = function (now) {
     var dt = Math.min(0.05, (now - this.last) / 1000); this.last = now;
+    if (this.slowT > 0) { this.slowT -= dt; dt *= 0.28; }
     if (!this.paused) { this.acc += dt; while (this.acc >= 1 / 60) { this.update(1 / 60); this.acc -= 1 / 60; } }
     this.draw();
   };
@@ -405,6 +409,8 @@
       else if (!this.view) { this.camHome(false); }
       else this.view = Math.max(0, this.view - dt);
     }
+    if (this.focus && this.focus.t > 0) { this.focus.t -= dt; var fs = this.baseScale() * 1.35; this.camT = { x: this.focus.x, y: 0, s: fs, lift: Math.max(0, (this.focus.y - 3) * fs) }; }
+    if (this.big) { this.big.t += dt; if (this.big.t > this.big.life) this.big = null; }
     var c = this.cam, T = this.camT, k = Math.min(1, dt * 3.5);
     c.x += (T.x - c.x) * k; c.s += (T.s - c.s) * k; c.lift = (c.lift || 0) + ((T.lift || 0) - (c.lift || 0)) * k;
     if (this.o.onTick) this.o.onTick();
@@ -430,6 +436,11 @@
   Game.prototype.won = function () { var P = this.phys; return P.racs.length ? P.racsLeft() === 0 : P.gemsLeft() === 0; };
   Game.prototype.afterShot = function () {
     var P = this.phys;
+    if (!this.defense && this.combo >= 3) {
+      var cb = Math.min(10, this.combo), bonus = cb * 250; P.score += bonus;
+      this.big = { txt: '¡COMBO x' + cb + '!  +' + bonus, t: 0, life: 1.6 }; RS.Audio.sfx('star', 0.8); stat(this, 'combo', cb);
+    }
+    this.combo = 0;
     if (this.defense) {
       if (P.gemsLeft() === 0) return this.finish(false);
       if (this.dShots <= 0) return this.finish(true);
@@ -477,7 +488,7 @@
     var st = this.level.stars, stars = win ? 1 + (score >= st[1] ? 1 : 0) + (score >= st[2] ? 1 : 0) : 0;
     if (this.defense) { var gl = this.phys.gemsLeft(), gt = this.phys.gems.length || 1; stars = win ? Math.max(1, Math.round(3 * gl / gt)) : 0; score = 1000 * gl + 500 * this.intercepts; bonus = 0; }
     var destr = this.phys.totalValue ? this.phys.destroyedValue / this.phys.totalValue : 0;
-    this.result = { win: win, stars: stars, score: score, bonus: bonus, left: left, destr: destr, racs: this.phys.racs.length, ko: this.phys.racs.filter(function (r) { return r.ko; }).length, gems: this.phys.gems.length, gemsGot: this.phys.gems.filter(function (g) { return g.freed; }).length };
+    this.result = { used: this.queue.filter(function (q) { return q.used; }).length, win: win, stars: stars, score: score, bonus: bonus, left: left, destr: destr, racs: this.phys.racs.length, ko: this.phys.racs.filter(function (r) { return r.ko; }).length, gems: this.phys.gems.length, gemsGot: this.phys.gems.filter(function (g) { return g.freed; }).length };
     RS.Audio.sfx(win ? 'star' : 'stone_hit', 0.6);
     var self = this; setTimeout(function () { if (self.o.onEnd) self.o.onEnd(self.result); }, 900);
   };
@@ -491,23 +502,25 @@
         RS.Audio.sfx({ wood: 'wood_break', stone: 'stone_break', ice: 'ice_break', metal: 'metal_hit', glass: 'glass_break' }[M.sfx], 0.55);
         for (var i = 0; i < 5; i++) self.parts.push({ fx: 'items', fr: [M.debris], x: e.x + (Math.random() - 0.5), y: e.y + (Math.random() - 0.5), w: 0.45 + Math.random() * 0.3, vx: (Math.random() - 0.5) * 7, vy: Math.random() * 6 + 1, g: 14, va: (Math.random() - 0.5) * 12, life: 1.1, t: 0, fade: true });
         self.dust(e.x, e.y, 1.6); self.shake = Math.max(self.shake, 4 * self.dpr);
-        self.pops.push({ x: e.x, y: e.y + 0.5, t: 0, txt: '+' + 100 * M.cost });
+        self.pops.push({ x: e.x, y: e.y + 0.5, t: 0, txt: '+' + 100 * M.cost }); self.combo = (self.combo || 0) + 1;
       } else if (e.t === 'crack') {
         RS.Audio.sfx({ wood: 'wood_hit', stone: 'stone_hit', ice: 'ice_break', metal: 'metal_hit', glass: 'glass_break' }[M.sfx], 0.35);
       } else if (e.t === 'hit') {
         if (e.d > 25) { self.parts.push({ fx: 'fx', fr: [8, 9, 10, 11], x: e.x, y: e.y, w: 1.3, life: 0.3, t: 0 }); RS.Audio.sfx({ wood: 'wood_hit', stone: 'stone_hit', ice: 'stone_hit', metal: 'metal_hit', glass: 'stone_hit' }[M.sfx], Math.min(0.5, e.d / 120)); }
       } else if (e.t === 'racko') {
         RS.Audio.sfx(e.boss ? 'explode' : 'star', 0.7); self.dust(e.x, e.y, 1.4); self.pops.push({ x: e.x, y: e.y + 1, t: 0, txt: '+' + e.v, gold: true });
+        self.combo = (self.combo || 0) + 2; stat(self, 'ko', { arm: self.lastArm, boss: e.boss }); RS.vib(e.boss ? 160 : 40);
+        if (!self.defense && (e.boss || self.phys.racsLeft() === 0)) { self.slowT = 1.6; self.big = { txt: e.boss ? '¡JEFE DERROTADO!' : '¡K.O.!', t: 0, life: 2.2 }; self.focus = { x: e.x, y: e.y, t: 1.6 }; }
         if (self.o.onQueue) self.o.onQueue();
       } else if (e.t === 'rachit') { RS.Audio.sfx('wood_hit', 0.4);
       } else if (e.t === 'shieldpop') { RS.Audio.sfx('glass_break', 0.7); self.parts.push({ fx: 'fx', fr: [12, 13, 14, 15], x: e.x, y: e.y, w: 2.2, life: 0.4, t: 0, fade: true });
       } else if (e.t === 'cage') {
         self.parts.push({ fx: 'siege', fr: [1], x: e.x, y: e.y, w: 1.1, life: 1.2, t: 0, fade: true, vy: -0.2 });
-        var arm = e.arm != null ? e.arm : 1; self.queue.push({ arm: arm, used: false, freed: true });
+        stat(self, 'cage'); var arm = e.arm != null ? e.arm : 1; self.queue.push({ arm: arm, used: false, freed: true });
         RS.Audio.sfx('magic', 0.9); self.pops.push({ x: e.x, y: e.y + 1.2, t: 0, txt: '¡' + RS.ARMS[arm].name + ' liberado!', gold: true });
         if (self.o.onQueue) self.o.onQueue();
       } else if (e.t === 'gem') {
-        RS.Audio.sfx('gem', 0.8);
+        RS.Audio.sfx('gem', 0.8); stat(self, 'gem');
         self.parts.push({ fx: 'items', fr: [6 + e.c], x: e.x, y: e.y, w: 0.9, vx: -4, vy: 9, g: 6, life: 1.2, t: 0, fade: true });
         self.parts.push({ fx: 'fx', fr: [8, 9, 10, 11], x: e.x, y: e.y, w: 2, life: 0.4, t: 0 });
         self.pops.push({ x: e.x, y: e.y + 0.8, t: 0, txt: '+1000', gold: true });
@@ -517,7 +530,7 @@
       } else if (e.t === 'turret') { RS.Audio.sfx('cannon', 0.5); self.parts.push({ fx: 'pow', fr: [6, 7, 8, 9, 10, 11], x: e.x, y: e.y, w: 1.2, life: 0.3, t: 0, ang: -e.a });
       } else if (e.t === 'shield') { RS.Audio.sfx('glass_break', 0.8); self.parts.push({ fx: 'fx', fr: [12, 13, 14, 15], x: e.x, y: e.y, w: 4.6, life: 0.5, t: 0, fade: true }); self.pops.push({ x: e.x, y: e.y + 1.5, t: 0, txt: '¡Escudo!' });
       } else if (e.t === 'explode') {
-        self.parts.push({ fx: 'fx', fr: [0, 1, 2, 3], x: e.x, y: e.y, w: 5.5, life: 0.6, t: 0 }); self.shake = 14 * self.dpr;
+        self.parts.push({ fx: 'fx', fr: [0, 1, 2, 3], x: e.x, y: e.y, w: 5.5, life: 0.6, t: 0 }); self.shake = 14 * self.dpr; RS.vib(60);
       } else if (e.t === 'weldbreak') RS.Audio.sfx('metal_hit', 0.4);
     });
   };
@@ -590,7 +603,9 @@
     });
     // puntos de trayectoria y barra de pólvora
     if (this.state === 'aim') this.drawAim(ctx);
+    if (this.level.tod) this.drawNight(ctx);
     this.drawWeather(ctx);
+    if (this.big) { var bk = this.big.t / this.big.life, sc = 1 + Math.max(0, 0.4 - this.big.t * 2); ctx.save(); ctx.globalAlpha = bk > 0.8 ? (1 - bk) * 5 : 1; ctx.font = Math.round(46 * this.dpr * sc) + 'px Lilita, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 8 * this.dpr; ctx.strokeStyle = '#3a1e0a'; ctx.fillStyle = '#ffd23f'; ctx.strokeText(this.big.txt, this.W / 2, this.H * 0.32); ctx.fillText(this.big.txt, this.W / 2, this.H * 0.32); ctx.restore(); }
     this.drawHudExtra(ctx);
     // textos flotantes
     ctx.textAlign = 'center'; ctx.font = (22 * this.dpr) + 'px Lilita, sans-serif';
@@ -601,6 +616,20 @@
     ctx.globalAlpha = 1; ctx.restore();
   };
 
+  // atardecer / noche: tinte sobre la escena y luces cálidas en gemas, cañón y mapaches
+  Game.prototype.drawNight = function (ctx) {
+    var night = this.level.tod === 'night', self = this, s = this.cam.s;
+    ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = night ? '#5868a8' : '#f0b08a'; ctx.fillRect(0, 0, this.W, this.H);
+    ctx.globalCompositeOperation = 'lighter';
+    var glow = function (x, y, r, col) { var gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2); };
+    if (night) {
+      this.phys.gems.forEach(function (g) { if (g.freed) return; var q = g.body.getPosition(); glow(self.sx(q.x), self.sy(q.y), 1.6 * s, 'rgba(255,240,170,0.35)'); });
+      this.phys.racs.forEach(function (r) { if (r.ko) return; var q = r.body.getPosition(); glow(self.sx(q.x), self.sy(q.y + 0.6), 1.3 * s, 'rgba(255,180,90,0.22)'); });
+      glow(this.sx(this.cannonX), this.sy(1), 3 * s, 'rgba(255,190,110,0.3)');
+      if (this.wx === null || !this.wx) { var t = this.t; for (var i = 0; i < 40; i++) { var X = (i * 97 % 100) / 100 * this.W, Y = (i * 37 % 45) / 100 * this.H; ctx.fillStyle = 'rgba(255,255,255,' + (0.4 + 0.4 * Math.sin(t * 2 + i)) + ')'; ctx.fillRect(X, Y, 2 * this.dpr, 2 * this.dpr); } }
+    }
+    ctx.restore();
+  };
   Game.prototype.drawHudExtra = function (ctx) {
     var d = this.dpr, W = this.W, self = this, P = this.phys;
     var boss = P.racs.filter(function (r) { return r.boss; })[0];
