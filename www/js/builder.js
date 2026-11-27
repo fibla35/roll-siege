@@ -40,7 +40,8 @@
   Builder.prototype.destroy = function () { this.dead = true; cancelAnimationFrame(this.raf); this.cv.removeEventListener('pointerdown', this._d); removeEventListener('pointermove', this._m); removeEventListener('pointerup', this._u); removeEventListener('pointercancel', this._u); this.cv.removeEventListener('wheel', this._w); removeEventListener('resize', this._r); };
   Builder.prototype.resize = function () {
     var d = Math.min(2, devicePixelRatio || 1); this.dpr = d; this.cv.width = RS.stage.w * d; this.cv.height = RS.stage.h * d; this.W = this.cv.width; this.H = this.cv.height;
-    this.top = this.H * 0.12; this.bot = this.H * 0.27;
+    var bar = document.querySelector('#build .bbar'), bt = document.querySelector('#build .btop');
+    this.top = bt && bt.offsetHeight ? (bt.offsetHeight + 4) * d : this.H * 0.12; this.bot = bar && bar.offsetHeight ? (bar.offsetHeight + 6) * d : this.H * 0.27;
     this.s0 = Math.min((this.W * 0.97) / (GW + 1), (this.H - this.top - this.bot) / (GH + 0.3));
     this.clampView();
   };
@@ -105,7 +106,8 @@
   Builder.prototype.trapCount = function () { return this.L.pieces.filter(function (p) { return RS.SHAPES[p.s].trap; }).length; };
   Builder.prototype.curPiece = function () {
     var s = RS.SHAPES[this.shape];
-    return { s: this.shape, m: s.mat != null ? s.mat : this.mat, rot: s.sprite || s.kind === 'circle' ? 0 : this.rot, flip: this.flip };
+    var r = s.sprite || s.kind === 'circle' ? 0 : this.rot; if (r >= 2 && s.kind !== 'box') r = r % 2;
+    return { s: this.shape, m: s.mat != null ? s.mat : this.mat, rot: r, flip: this.flip };
   };
   // la pieza cae hasta apoyarse en lo que tenga debajo (o en el suelo)
   Builder.prototype.dropY = function (x0, x1, yTap, h) {
@@ -126,7 +128,8 @@
     var a = RS.pieceAABB(p), s = RS.SHAPES[p.s];
     if (a.x0 < -0.01 || a.x1 > GW + 0.01 || a.y1 > GH + 0.01) return 'Fuera de la zona de construcción';
     if (s.ground && a.y0 > 0.01) return 'Esta pieza solo va en el suelo';
-    var hit = this.L.pieces.some(function (q) { var b = RS.pieceAABB(q); return Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.02 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.02; });
+    var oa = RS.pieceOBB(p), diagA = (p.rot || 0) >= 2;
+    var hit = this.L.pieces.some(function (q) { var b = RS.pieceAABB(q); var box = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.02 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.02; if (!box) return false; if (!diagA && (q.rot || 0) < 2) return true; return RS.obbOverlap(oa, RS.pieceOBB(q)); });
     if (hit || this.L.gems.some(function (g) { return g.x > a.x0 && g.x < a.x1 && g.y > a.y0 && g.y < a.y1; })) return 'No cabe ahí';
     if (this.cost() + (extraCost || 0) > this.budget) return 'Sin puntos de construcción';
     return null;
@@ -246,7 +249,7 @@
     if (S.t > 4) {
       var marks = [], bad = 0;
       S.P.blocks.forEach(function (u) {
-        var d = u.dead ? 9 : Math.hypot(u.body.getPosition().x - u.p.x, u.body.getPosition().y - u.p.y) + Math.abs(u.body.getAngle() - (u.p.rot || 0) * Math.PI / 2) * 0.5;
+        var d = u.dead ? 9 : Math.hypot(u.body.getPosition().x - u.p.x, u.body.getPosition().y - u.p.y) + Math.abs(u.body.getAngle() - RS.rotAng(u.p)) * 0.5;
         var lvl = d > 0.25 ? 2 : d > 0.06 ? 1 : 0; if (lvl === 2) bad++;
         marks.push(lvl);
       });
@@ -259,8 +262,40 @@
   };
 
   // ---------- dibujo ----------
+  // modo plano (pantalla azul): fondo limpio, cuadrícula clara y piezas con contorno
+  Builder.prototype.drawBlue = function () {
+    var ctx = this.ctx, W = this.W, H = this.H, s = this.s, self = this, d = this.dpr;
+    ctx.fillStyle = '#123a6b'; ctx.fillRect(0, 0, W, H);
+    ctx.lineWidth = 1;
+    for (var gx = -12; gx <= GW + 12; gx += 0.5) { var X = this.sx(gx); if (X < -2 || X > W + 2) continue; ctx.strokeStyle = gx % 1 ? 'rgba(160,200,255,0.10)' : gx % 5 ? 'rgba(160,200,255,0.25)' : 'rgba(200,225,255,0.5)'; ctx.beginPath(); ctx.moveTo(X, 0); ctx.lineTo(X, this.sy(0)); ctx.stroke(); }
+    for (var gy = 0; gy <= GH + 8; gy += 0.5) { var Y = this.sy(gy); if (Y < 0) break; ctx.strokeStyle = gy % 1 ? 'rgba(160,200,255,0.10)' : gy % 5 ? 'rgba(160,200,255,0.25)' : 'rgba(200,225,255,0.5)'; ctx.beginPath(); ctx.moveTo(0, Y); ctx.lineTo(W, Y); ctx.stroke(); }
+    ctx.fillStyle = '#0b2648'; ctx.fillRect(0, this.sy(0), W, H); ctx.strokeStyle = '#cfe4ff'; ctx.lineWidth = 2 * d; ctx.beginPath(); ctx.moveTo(0, this.sy(0)); ctx.lineTo(W, this.sy(0)); ctx.stroke();
+    ctx.setLineDash([8 * d, 6 * d]); ctx.strokeStyle = 'rgba(255,230,120,0.8)'; ctx.strokeRect(this.sx(0), this.sy(GH), GW * s, GH * s); ctx.setLineDash([]);
+    ctx.fillStyle = '#cfe4ff'; ctx.font = (11 * d) + 'px Nunito, sans-serif'; ctx.textAlign = 'left';
+    for (var hy = 1; hy <= GH; hy++) if (hy % 2 === 0) ctx.fillText(hy + ' m', this.sx(0) + 3 * d, this.sy(hy) + 12 * d);
+    for (var wx = 0; wx <= GW; wx += 5) ctx.fillText(wx + '', this.sx(wx) + 2 * d, this.sy(0) + 14 * d);
+    var bodies = this.sim ? this.sim.P.blocks.filter(function (u) { return !u.dead; }).map(function (u) { var q = u.body.getPosition(); return { p: u.p, x: q.x, y: q.y, a: u.body.getAngle() }; })
+      : this.L.pieces.map(function (p) { return { p: p, x: p.x, y: p.y, a: RS.rotAng(p) }; });
+    bodies.forEach(function (o, i) {
+      RS.drawBlock(ctx, self.style, o.p, false, self.sx(o.x), self.sy(o.y), -o.a, s, 0.55);
+      var q = Object.assign({}, o.p, { x: o.x, y: o.y }), pts = self.sim ? null : RS.pieceOBB(q);
+      var mk = !self.sim && self.marks && self.marks[i];
+      ctx.strokeStyle = mk === 2 ? '#ff5a5a' : mk === 1 ? '#ffd84a' : o.p.weld || RS.SHAPES[o.p.s].weld ? '#ffd27a' : '#e8f3ff'; ctx.lineWidth = 2 * d;
+      if (pts) { ctx.beginPath(); pts.forEach(function (c, k) { var X = self.sx(c[0]), Y = self.sy(c[1]); if (k) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }); ctx.closePath(); ctx.stroke(); }
+    });
+    (this.sim ? this.sim.P.gems.filter(function (g) { return !g.freed; }).map(function (g) { var q = g.body.getPosition(); return { x: q.x, y: q.y, c: g.c }; }) : this.L.gems).forEach(function (g) { RS.drawSp(ctx, 'items', 6 + (g.c || 0), self.sx(g.x), self.sy(g.y), 0.75 * s, 0.75 * s); });
+    if (this.L.sign) { ctx.fillStyle = '#ffd27a'; ctx.font = (13 * d) + 'px Lilita, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🪧 ' + this.L.sign.name, this.sx(this.L.sign.x), this.sy(this.L.sign.y + 0.6)); }
+    var G = this.ghost;
+    if (G && !this.sim) {
+      var list = G.p ? [G.p] : G.ps, bad = G.p ? G.p.bad : G.bad;
+      if (list) list.forEach(function (p) { RS.drawBlock(ctx, self.style, p, false, self.sx(p.x), self.sy(p.y), -RS.rotAng(p), s, 0.7); var pts = RS.pieceOBB(p); ctx.strokeStyle = bad ? '#ff5a5a' : '#6dff8a'; ctx.lineWidth = 3 * d; ctx.beginPath(); pts.forEach(function (c, k) { var X = self.sx(c[0]), Y = self.sy(c[1]); if (k) ctx.lineTo(X, Y); else ctx.moveTo(X, Y); }); ctx.closePath(); ctx.stroke(); });
+    }
+    if (this.msg) { ctx.save(); ctx.font = (22 * d) + 'px Lilita, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,0.65)'; var tw = ctx.measureText(this.msg.t).width + 40 * d; ctx.fillRect(W / 2 - tw / 2, H * 0.13, tw, 42 * d); ctx.fillStyle = '#fff'; ctx.fillText(this.msg.t, W / 2, H * 0.13 + 29 * d); ctx.restore(); }
+  };
+
   Builder.prototype.draw = function () {
     var ctx = this.ctx, W = this.W, H = this.H, s = this.s, self = this;
+    if (this.blue) return this.drawBlue();
     var far = RS.img['bg_' + this.clan];
     if (far) { var fs = Math.max(W / far.width, H / far.height); ctx.drawImage(far, (W - far.width * fs) / 2, (H - far.height * fs) / 2, far.width * fs, far.height * fs); }
     var mid = RS.img['bg_' + this.clan + '_mid'];
@@ -286,7 +321,7 @@
         var sh = RS.SHAPES[p.s];
         if (sh.trap === 'shield') { ctx.save(); ctx.globalAlpha = 0.16; ctx.fillStyle = '#7fe8ff'; ctx.beginPath(); ctx.arc(self.sx(p.x), self.sy(p.y), 2.3 * s, 0, 7); ctx.fill(); ctx.restore(); }
         if (sh.trap === 'fan') { ctx.save(); ctx.globalAlpha = 0.12; ctx.fillStyle = '#fff'; var dir = p.flip ? 1 : -1; ctx.fillRect(Math.min(self.sx(p.x), self.sx(p.x + dir * 7)), self.sy(p.y + 1.8), 7 * s, 3.6 * s); ctx.restore(); }
-        RS.drawBlock(ctx, self.style, p, false, self.sx(p.x), self.sy(p.y), -(p.rot || 0) * Math.PI / 2, s, null, p.tint);
+        RS.drawBlock(ctx, self.style, p, false, self.sx(p.x), self.sy(p.y), -RS.rotAng(p), s, null, p.tint);
         if (p.weld && !sh.weld) { ctx.fillStyle = '#c9cfd6'; ctx.strokeStyle = '#333'; var z = RS.pieceSize(p); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (c) { ctx.beginPath(); ctx.arc(self.sx(p.x + c[0] * (z.w / 2 - 0.15)), self.sy(p.y + c[1] * (z.h / 2 - 0.12)), 0.08 * s, 0, 7); ctx.fill(); ctx.stroke(); }); }
         if (self.marks && self.marks[i]) { var a = RS.pieceAABB(p); ctx.fillStyle = self.marks[i] === 2 ? 'rgba(255,40,40,0.45)' : 'rgba(255,210,40,0.4)'; ctx.fillRect(self.sx(a.x0), self.sy(a.y1), (a.x1 - a.x0) * s, (a.y1 - a.y0) * s); }
       });
@@ -305,7 +340,7 @@
     if (G && !this.sim) {
       var list = G.p ? [G.p] : G.ps, bad = G.p ? G.p.bad : G.bad;
       if (list) list.forEach(function (p) {
-        RS.drawBlock(ctx, self.style, p, false, self.sx(p.x), self.sy(p.y), -(p.rot || 0) * Math.PI / 2, s, 0.6);
+        RS.drawBlock(ctx, self.style, p, false, self.sx(p.x), self.sy(p.y), -RS.rotAng(p), s, 0.6);
         var a2 = RS.pieceAABB(p); ctx.strokeStyle = bad ? '#f44' : '#5f5'; ctx.lineWidth = 3 * self.dpr; ctx.strokeRect(self.sx(a2.x0), self.sy(a2.y1), (a2.x1 - a2.x0) * s, (a2.y1 - a2.y0) * s);
       });
       else { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * this.dpr; ctx.beginPath(); ctx.arc(this.sx(G.x), this.sy(G.y), 0.4 * s, 0, 7); ctx.stroke(); }

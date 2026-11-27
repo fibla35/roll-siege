@@ -5,7 +5,28 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
 (function (RS, pl) {
   var V = pl.Vec2;
 
-  function pieceSize(p) { var s = RS.SHAPES[p.s]; return (p.rot % 2) ? { w: s.h, h: s.w } : { w: s.w, h: s.h }; }
+  // giros: 0 = normal, 1 = vertical (90°), 2 = diagonal subiendo (45°), 3 = diagonal bajando (-45°)
+  RS.ANG = [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4];
+  RS.rotAng = function (p) { return RS.ANG[p.rot || 0] || 0; };
+  function pieceSize(p) {
+    var s = RS.SHAPES[p.s], r = p.rot || 0;
+    if (r >= 2) { var d = (s.w + s.h) * Math.SQRT1_2; return { w: Math.round(d * 2) / 2, h: Math.round(d * 2) / 2, diag: true }; }
+    return (r % 2) ? { w: s.h, h: s.w } : { w: s.w, h: s.h };
+  }
+  // rectángulo girado real (para no chocar con la caja grande de una diagonal)
+  RS.pieceOBB = function (p) {
+    var s = RS.SHAPES[p.s], a = RS.rotAng(p), c = Math.cos(a), n = Math.sin(a), hw = s.w / 2 - 0.02, hh = s.h / 2 - 0.02;
+    return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(function (q) { return [p.x + q[0] * c - q[1] * n, p.y + q[0] * n + q[1] * c]; });
+  };
+  RS.obbOverlap = function (A, B) {
+    var polys = [A, B];
+    for (var i = 0; i < 2; i++) { var P = polys[i]; for (var k = 0; k < 4; k++) {
+      var p1 = P[k], p2 = P[(k + 1) % 4], ax = p2[1] - p1[1], ay = p1[0] - p2[0], mn = [1e9, 1e9], mx = [-1e9, -1e9];
+      polys.forEach(function (Q, j) { Q.forEach(function (q) { var d = q[0] * ax + q[1] * ay; if (d < mn[j]) mn[j] = d; if (d > mx[j]) mx[j] = d; }); });
+      if (mx[0] <= mn[1] || mx[1] <= mn[0]) return false;
+    } }
+    return true;
+  };
   RS.pieceSize = pieceSize;
   RS.pieceAABB = function (p) { var z = pieceSize(p); return { x0: p.x - z.w / 2, x1: p.x + z.w / 2, y0: p.y - z.h / 2, y1: p.y + z.h / 2 }; };
 
@@ -46,7 +67,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
   RS.pieceMat = function (p) { var s = RS.SHAPES[p.s]; return s.mat != null ? s.mat : p.m; };
   Phys.prototype.addPiece = function (p, i) {
     var s = RS.SHAPES[p.s], mi = RS.pieceMat(p), m = RS.MATS[mi];
-    var b = this.world.createBody({ type: s.static ? 'static' : 'dynamic', position: V(p.x, p.y), angle: (p.rot || 0) * Math.PI / 2 });
+    var b = this.world.createBody({ type: s.static ? 'static' : 'dynamic', position: V(p.x, p.y), angle: RS.rotAng(p) });
     addShapeFixtures(b, s, p.flip, { density: m.dens * (s.dens || 1), friction: m.fr, restitution: m.rest });
     var hp = m.hp * (s.static ? 1.6 : 1) * (s.explosive ? 0.25 : 1);
     var ud = { block: true, p: p, idx: i, s: p.s, m: mi, hp: hp, hp0: hp, fragile: m.fragile || 1, frozen: false, body: b, trap: s.trap || null, cd: 0, shots: 0, fr: 0, explosive: s.explosive || 0 };

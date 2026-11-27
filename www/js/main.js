@@ -226,7 +226,7 @@
     lvl.pieces.forEach(function (p) { var a = RS.pieceAABB(p); x0 = Math.min(x0, a.x0); x1 = Math.max(x1, a.x1); y1 = Math.max(y1, a.y1); });
     if (!isFinite(x0)) { x0 = 0; x1 = 10; }
     var s = Math.min((W - 20) / (x1 - x0 + 1), (H - 20) / (y1 + 0.5)), ox = (W - (x1 - x0) * s) / 2 - x0 * s;
-    lvl.pieces.forEach(function (p) { RS.drawBlock(c, style, p, false, ox + p.x * s, H - 8 - p.y * s, -(p.rot || 0) * Math.PI / 2, s, null, p.tint); });
+    lvl.pieces.forEach(function (p) { RS.drawBlock(c, style, p, false, ox + p.x * s, H - 8 - p.y * s, -RS.rotAng(p), s, null, p.tint); });
     (lvl.gems || []).forEach(function (g) { RS.drawSp(c, 'items', 6 + (g.c || 0), ox + g.x * s, H - 8 - g.y * s, 0.75 * s, 0.75 * s); });
   }
   SCREENS.league = function () {
@@ -251,17 +251,18 @@
     var three = Math.round((endX - OFF) * 120 + gems.length * 1000);
     return { pieces: pieces, gems: gems, arms: [0, 1, 3, 2, 4], end: endX, stars: [1, three * 0.55, three * 0.85], deco: (L.deco || []).map(function (d) { return Object.assign({}, d, { x: d.x + OFF }); }), sign: L.sign ? Object.assign({}, L.sign, { x: L.sign.x + OFF, name: S.name }) : null };
   }
-  var TOOLS = [['place', '🧱 Poner'], ['tpl', '🏠 Plantillas'], ['move', '✋ Mover'], ['pick', '📋 Copiar'], ['erase', '🗑 Quitar'], ['weld', '🔩 Soldar'], ['swap', '♻ Material'], ['paint', '🎨 Pintar'], ['gem', '💎 Gema'], ['deco', '🏮 Adorno'], ['sign', '🪧 Cartel']];
+  var TOOLS = [['place', '🧱', 'Poner'], ['tpl', '🏠', 'Plantillas'], ['move', '✋', 'Mover'], ['pick', '📋', 'Copiar'], ['erase', '🗑', 'Quitar'], ['weld', '🔩', 'Soldar'], ['swap', '♻', 'Cambiar material'], ['paint', '🎨', 'Pintar'], ['gem', '💎', 'Gema'], ['deco', '🏮', 'Adorno'], ['sign', '🪧', 'Cartel'], ['pan', '👁', 'Mover la vista']];
+  var ROTN = ['normal', 'vertical', 'diagonal ↗', 'diagonal ↘'];
   var CATS = [['est', 'Estructura'], ['ref', 'Refuerzos'], ['trap', 'Trampas']];
   function pieceIcon(p, bw, bh) {
     var c = document.createElement('canvas'); c.width = bw; c.height = bh; var x = c.getContext('2d'), sh = RS.SHAPES[p.s];
-    var z = RS.pieceSize(p), s = Math.min((bw - 8) / z.w, (bh - 6) / z.h); RS.drawBlock(x, S.clan, p, false, bw / 2, bh / 2, -(p.rot || 0) * Math.PI / 2, s);
+    var z = RS.pieceSize(p), s = Math.min((bw - 8) / z.w, (bh - 6) / z.h); RS.drawBlock(x, S.clan, p, false, bw / 2, bh / 2, -RS.rotAng(p), s);
     return c;
   }
   function tplIcon(T, mat) {
     var c = document.createElement('canvas'); c.width = 90; c.height = 60; var x = c.getContext('2d'), s = Math.min(84 / T.w, 54 / T.h);
     T.ps.forEach(function (d) { var si = RS.SHAPE_IDX[d[0]], sh = RS.SHAPES[si], p = { s: si, m: sh.mat != null ? sh.mat : (d[1] != null ? d[1] : mat), rot: d[4] || 0, flip: !!d[5] };
-      RS.drawBlock(x, S.clan, p, false, 45 - T.w * s / 2 + d[2] * s, 57 - d[3] * s, -(p.rot) * Math.PI / 2, s); });
+      RS.drawBlock(x, S.clan, p, false, 45 - T.w * s / 2 + d[2] * s, 57 - d[3] * s, -RS.rotAng(p), s); });
     return c;
   }
   function tb(txt, sel, fn, cls) { var b = document.createElement('button'); b.className = 'tb' + (sel ? ' sel' : '') + (cls ? ' ' + cls : ''); if (typeof txt === 'string') b.textContent = txt; else b.appendChild(txt); b.onclick = function (e) { e.stopPropagation(); RS.Audio.sfx('click', 0.35); fn(); }; return b; }
@@ -269,22 +270,23 @@
   function matButtons(pal, B) {
     RS.MATS.forEach(function (m, i) {
       var open = matOpen(i);
-      pal.appendChild(tb(m.name + ' · ' + m.cost, B.mat === i, function () { if (!open) return toast('Se desbloquea en el mundo ' + m.lvl); B.mat = i; buildUI(); }, open ? '' : 'lock'));
+      pal.appendChild(tb(m.name.replace(' reforzado', '') + ' ' + m.cost, B.mat === i, function () { if (!open) return toast('Se desbloquea en el mundo ' + m.lvl); B.mat = i; buildUI(); }, 'mat' + (open ? '' : ' lock')));
     });
   }
   function buildUI() {
     var B = builder; if (!B) return;
     var tl = $('b_tools'), pal = $('b_pal'); tl.innerHTML = ''; pal.innerHTML = '';
-    TOOLS.forEach(function (t) { tl.appendChild(tb(t[1], B.tool === t[0], function () { B.setTool(t[0]); buildUI(); })); });
+    TOOLS.forEach(function (t) { var b = tb(t[1], B.tool === t[0], function () { B.setTool(t[0]); buildUI(); }, 'ico'); b.title = t[2]; tl.appendChild(b); });
     tl.appendChild(sep());
-    tl.appendChild(tb('↶ Deshacer', false, function () { B.undo(); updB(); }));
-    tl.appendChild(tb('⟳ Girar', false, function () { B.rot = (B.rot + 1) % 2; if (B.carry) B.carry.rot = ((B.carry.rot || 0) + 1) % 2; buildUI(); }));
-    tl.appendChild(tb('⇋ Voltear', B.flip, function () { B.flip = !B.flip; if (B.carry) B.carry.flip = !B.carry.flip; buildUI(); }));
-    tl.appendChild(tb('🔍−', false, function () { B.zoom(1 / 1.3); }));
-    tl.appendChild(tb('🔍+', false, function () { B.zoom(1.3); }));
-    tl.appendChild(tb('👁 Vista', B.tool === 'pan', function () { B.setTool('pan'); buildUI(); }));
-    tl.appendChild(tb('✏ Nombre', false, function () { ask('Nombre de tu fortaleza', function (v) { v = (v || '').trim(); if (v) { S.name = v.slice(0, 20); persist(); if (B.L.sign) B.L.sign.name = S.name; toast('Nombre: ' + S.name); } }, S.name); }));
-    tl.appendChild(tb('✖ Vaciar', false, function () { ask('¿Borrar toda la fortaleza?', function () { B.snap(); B.L.pieces = []; B.L.gems = []; B.L.deco = []; B.L.sign = null; B.changed(); }); }));
+    function ib(ico, title, sel, fn) { var b = tb(ico, sel, fn, 'ico'); b.title = title; tl.appendChild(b); }
+    ib('↶', 'Deshacer', false, function () { B.undo(); updB(); });
+    ib('⟳', 'Girar: normal → vertical → diagonales', false, function () { B.rot = (B.rot + 1) % 4; if (B.carry) { var cs = RS.SHAPES[B.carry.s]; if (!cs.sprite && cs.kind !== 'circle') B.carry.rot = ((B.carry.rot || 0) + 1) % (cs.kind === 'box' ? 4 : 2); } toast('Giro: ' + ROTN[B.rot]); buildUI(); });
+    ib('⇋', 'Voltear', B.flip, function () { B.flip = !B.flip; if (B.carry) B.carry.flip = !B.carry.flip; buildUI(); });
+    ib('−', 'Alejar', false, function () { B.zoom(1 / 1.3); });
+    ib('+', 'Acercar', false, function () { B.zoom(1.3); });
+    ib('📐', 'Modo plano (pantalla azul)', B.blue, function () { B.blue = !B.blue; S.blueprint = B.blue; persist(); buildUI(); });
+    ib('✏', 'Nombre de la fortaleza', false, function () { ask('Nombre de tu fortaleza', function (v) { v = (v || '').trim(); if (v) { S.name = v.slice(0, 20); persist(); if (B.L.sign) B.L.sign.name = S.name; toast('Nombre: ' + S.name); } }, S.name); });
+    ib('✖', 'Vaciar todo', false, function () { ask('¿Borrar toda la fortaleza?', function () { B.snap(); B.L.pieces = []; B.L.gems = []; B.L.deco = []; B.L.sign = null; B.changed(); }); });
     var info = '';
     if (B.tool === 'place') {
       CATS.forEach(function (c) { pal.appendChild(tb(c[1], B.cat === c[0], function () { B.cat = c[0]; var first = RS.SHAPES.findIndex(function (sh) { return (sh.cat || 'est') === c[0]; }); if ((RS.SHAPES[B.shape].cat || 'est') !== c[0]) B.shape = first; buildUI(); }, 'cat')); });
@@ -292,7 +294,7 @@
       RS.SHAPES.forEach(function (sh, i) {
         if ((sh.cat || 'est') !== B.cat) return;
         var p = { s: i, m: sh.mat != null ? sh.mat : B.mat, rot: sh.sprite || sh.kind === 'circle' ? 0 : B.rot, flip: B.flip };
-        var b = tb(pieceIcon(p, 84, 56), B.shape === i, function () { B.shape = i; buildUI(); });
+        var b = tb(pieceIcon(p, 72, 48), B.shape === i, function () { B.shape = i; buildUI(); });
         b.title = sh.name; pal.appendChild(b);
       });
       var cur = RS.SHAPES[B.shape];
@@ -315,7 +317,9 @@
         pal.appendChild(tb(c, B.decoIdx === k, function () { B.decoIdx = k; buildUI(); }));
       })(k);
     } else info = { move: 'Toca una pieza para cogerla y luego toca dónde dejarla. Girar y Voltear también funcionan mientras la llevas.', pick: 'Toca una pieza para copiar su forma y material.', erase: 'Toca una pieza, gema, adorno o el cartel para quitarlo.', weld: 'Toca una pieza para soldarla a las que toca (+1 punto). Las soldaduras aguantan, pero un golpe fuerte las rompe.', gem: 'Pon hasta 3 gemas: el rival gana si las tira todas. Escóndelas bien.', sign: 'Toca donde quieras colgar el cartel con el nombre.', pan: 'Arrastra para mover la vista. Con dos dedos también puedes mover y hacer zoom en cualquier herramienta.' }[B.tool] || '';
-    $('b_info').textContent = info; buildUI.last = B.tool;
+    var tn = TOOLS.find(function (t) { return t[0] === B.tool; });
+    $('b_info').textContent = (tn ? tn[1] + ' ' + tn[2] + ' · ' : '') + info; buildUI.last = B.tool;
+    setTimeout(function () { if (builder) builder.resize(); }, 0);
     updB();
   }
   function updB() {
@@ -330,6 +334,7 @@
       if (cur !== 'build') return;
       if (builder) builder.destroy();
       builder = new RS.Builder(cv, { clan: S.clan, layout: S.layout, stable: S.stable, name: S.name, budget: RS.buildBudget(S, maxWorld()), onChange: function () { if (builder && builder.tool !== buildUI.last) buildUI(); else updB(); } });
+      builder.blue = !!S.blueprint;
       buildUI();
     });
   };

@@ -147,3 +147,18 @@ input, select { font-family: Nunito; font-weight: 800; font-size: calc(3 * var(-
 
 #stage { position: fixed; overflow: hidden; background: #1b120b; box-shadow: 0 0 0 100vmax #0d0805; }
 :root { --vh: 1vh; --vw: 1vw; }
+
+/* botón atrás, igual en todos los menús */
+.back { flex: none; width: calc(9 * var(--vh)); height: calc(9 * var(--vh)); min-width: 34px; min-height: 34px; border-radius: 50%; border: 3px solid #fff4d6; background: radial-gradient(circle at 35% 30%, #ffc94a, #d9771b 60%, #9a4a10); box-shadow: 0 3px 0 #5a2a08, 0 4px 8px rgba(0,0,0,.5); color: #fff; font-family: Lilita, sans-serif; font-size: calc(5 * var(--vh)); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0 0.3em 0 0; text-shadow: 0 2px 0 #7a3a0a; }
+.back:active { transform: scale(.9); }
+.topbar h2 { font-size: calc(4.4 * var(--vh)); }
+#clan .topbar { position: absolute; }
+/* constructor: barras que se reparten en filas en vez de cortarse */
+.bbar { gap: calc(.5 * var(--vh)); }
+.tools, .pal { flex-wrap: wrap; overflow: visible; gap: calc(.5 * var(--vh)); }
+.tb { height: calc(6.4 * var(--vh)); min-width: calc(6.4 * var(--vh)); font-size: calc(2.1 * var(--vh)); padding: 0 calc(.8 * var(--vh)); border-radius: calc(1.2 * var(--vh)); }
+.tb canvas { height: calc(5.2 * var(--vh)); }
+.tb.ico { font-size: calc(3.2 * var(--vh)); padding: 0; width: calc(6.4 * var(--vh)); }
+.tb.mat { font-size: calc(1.9 * var(--vh)); }
+.btop { padding: calc(1 * var(--vh)) calc(1.5 * var(--vw)); }
+.btop .btn.sm { font-size: calc(2.6 * var(--vh)); height: calc(6.6 * var(--vh)); }
