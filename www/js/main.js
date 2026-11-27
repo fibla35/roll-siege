@@ -467,7 +467,7 @@
     var three = Math.round((endX - OFF) * 120 + gems.length * 1000);
     return { pieces: pieces, gems: gems, arms: [0, 1, 3, 2, 4], end: endX, stars: [1, three * 0.55, three * 0.85], deco: (L.deco || []).map(function (d) { return Object.assign({}, d, { x: d.x + OFF }); }), sign: { x: OFF - 2.1, y: 0, name: S.name } };
   }
-  var TOOLS = [['place', '🧱', 'Poner'], ['tpl', '🏠', 'Plantillas'], ['move', '✋', 'Mover'], ['pick', '📋', 'Copiar'], ['erase', '🗑', 'Quitar'], ['weld', '🔩', 'Soldar'], ['swap', '♻', 'Cambiar material'], ['paint', '🎨', 'Pintar'], ['gem', '💎', 'Gema'], ['deco', '🏮', 'Adorno'], ['pan', '👁', 'Mover la vista']];
+  var TOOLS = [['place', '🧱', 'Poner'], ['tpl', '🏠', 'Plantillas'], ['pick', '📋', 'Copiar'], ['erase', '🗑', 'Quitar'], ['weld', '🔩', 'Soldar'], ['swap', '♻', 'Cambiar material'], ['paint', '🎨', 'Pintar'], ['gem', '💎', 'Gema'], ['deco', '🏮', 'Adorno'], ['pan', '👁', 'Mover la vista']];
   var ROTN = ['normal', 'vertical', 'diagonal ↗', 'diagonal ↘'];
   var CATS = [['est', 'Estructura'], ['ref', 'Refuerzos'], ['trap', 'Trampas']];
   function pieceIcon(p, bw, bh) {
@@ -496,10 +496,8 @@
     tl.appendChild(sep());
     function ib(ico, title, sel, fn) { var b = tb(ico, sel, fn, 'ico'); b.title = title; tl.appendChild(b); }
     ib('↶', 'Deshacer', false, function () { B.undo(); updB(); });
-    ib('⟳', 'Girar: normal → vertical → diagonales', false, function () { B.rot = (B.rot + 1) % 4; if (B.carry) { var cs = RS.SHAPES[B.carry.s]; if (!cs.sprite && cs.kind !== 'circle') B.carry.rot = ((B.carry.rot || 0) + 1) % (cs.kind === 'box' ? 4 : 2); } toast('Giro: ' + ROTN[B.rot]); buildUI(); });
-    ib('⇋', 'Voltear', B.flip, function () { B.flip = !B.flip; if (B.carry) B.carry.flip = !B.carry.flip; buildUI(); });
-    ib('−', 'Alejar', false, function () { B.zoom(1 / 1.3); });
-    ib('+', 'Acercar', false, function () { B.zoom(1.3); });
+    ib('⟳', 'Girar', false, function () { B.rot = (B.rot + 1) % 4; if (B.carry) { var cs = RS.SHAPES[B.carry.s]; if (cs.kind !== 'circle') B.carry.rot = cs.sprite ? (cs.kind === 'brace' ? 0 : (B.carry.rot === 4 ? 0 : 4)) : ((B.carry.rot || 0) + 1) % (cs.kind === 'box' ? 4 : 2); } B.autoOrient = false; buildUI(); });
+    ib('⇋', 'Voltear', B.flip, function () { B.flip = !B.flip; B.autoOrient = false; if (B.carry) B.carry.flip = !B.carry.flip; buildUI(); });
     ib('🌊', 'Fondo de mar (limpio)', B.sea && !B.blue, function () { B.sea = !B.sea; if (B.sea) B.blue = false; S.buildSea = B.sea; S.blueprint = B.blue; persist(); buildUI(); });
     ib('📐', 'Modo plano (pantalla azul)', B.blue, function () { B.blue = !B.blue; S.blueprint = B.blue; persist(); buildUI(); });
     ib('✏', 'Nombre de la fortaleza', false, function () { ask('Nombre de tu fortaleza', function (v) { v = (v || '').trim(); if (v) { S.name = v.slice(0, 20); persist(); if (B.L.sign) B.L.sign.name = S.name; toast('Nombre: ' + S.name); } }, S.name); });
@@ -509,11 +507,11 @@
       CATS.forEach(function (c) { pal.appendChild(tb(c[1], B.cat === c[0], function () { B.cat = c[0]; var first = RS.SHAPES.findIndex(function (sh) { return (sh.cat || 'est') === c[0]; }); if ((RS.SHAPES[B.shape].cat || 'est') !== c[0]) B.shape = first; buildUI(); }, 'cat')); });
       pal.appendChild(sep());
       var order = RS.SHAPES.map(function (sh, i) { return i; }), ti = RS.SHAPE_IDX.tejado;
-      order = order.filter(function (i) { return !RS.SHAPES[i].spr; }); order.splice(order.indexOf(ti) + 1, 0, RS.SHAPE_IDX.tejado3, RS.SHAPE_IDX.tejado4);
+      order = order.filter(function (i) { return !RS.SHAPES[i].spr && !RS.SHAPES[i].hidden; }); order.splice(order.indexOf(ti) + 1, 0, RS.SHAPE_IDX.tejado3, RS.SHAPE_IDX.tejado4);
       order.forEach(function (i) { var sh = RS.SHAPES[i];
         if ((sh.cat || 'est') !== B.cat) return;
         var p = { s: i, m: sh.mat != null ? sh.mat : B.mat, rot: sh.sprite || sh.kind === 'circle' ? 0 : B.rot, flip: B.flip };
-        var b = tb(pieceIcon(p, 72, 48), B.shape === i, function () { B.shape = i; buildUI(); });
+        var b = tb(pieceIcon(p, 72, 48), B.shape === i, function () { B.shape = i; B.autoOrient = true; buildUI(); });
         b.title = sh.name; pal.appendChild(b);
         // arrastrar la pieza hacia arriba la saca de la paleta y se suelta donde quieras
         b.addEventListener('pointerdown', function (ev) {

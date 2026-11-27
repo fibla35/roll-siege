@@ -1,6 +1,11 @@
 # Diccionario español → inglés de Roll Siege. Frases completas y trozos: el traductor en tiempo real
 # sustituye primero las coincidencias más largas, respetando los límites de palabra.
 EN = {
+'Toca en una esquina (de suelo o de techo) y se coloca sola, soldada.': 'Tap a corner (floor or ceiling) and it places itself, welded.',
+'Toca junto a una pared: apuntala desde el suelo, o bajo un techo como escuadra grande.': 'Tap next to a wall: braces it from the floor, or under a roof as a big bracket.',
+'Como el de madera, pero mucho más resistente.': 'Like the wooden one, but much tougher.',
+'Toca junto a una pared por fuera: la sujeta y desvía bolas.': 'Tap outside next to a wall: props it up and deflects balls.',
+'Girar': 'Rotate',
 # --- menús e interfaz
 'Cargando…': 'Loading…', '¡Jugar!': 'Play!', 'v0.5 prueba': 'v0.5 test', 'v0.6 prueba': 'v0.6 test', 'Atrás': 'Back', 'Elige tu clan': 'Choose your clan',
 'Todos los clanes tienen la misma física: solo cambia el estilo de tu fortaleza. Podrás cambiarlo en Ajustes.': 'All clans play the same: only your fortress style changes. You can change it later in Settings.',

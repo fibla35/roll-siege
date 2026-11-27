@@ -132,7 +132,7 @@
   Builder.prototype.trapCount = function () { return this.L.pieces.filter(function (p) { return RS.SHAPES[p.s].trap; }).length; };
   Builder.prototype.curPiece = function () {
     var s = RS.SHAPES[this.shape];
-    var r = s.sprite || s.kind === 'circle' ? 0 : this.rot; if (r >= 2 && s.kind !== 'box') r = r % 2;
+    var r = s.kind === 'circle' || s.trap ? 0 : s.sprite ? (s.kind === 'brace' ? 0 : (this.rot % 2 ? 4 : 0)) : this.rot; if (!s.sprite && r >= 2 && s.kind !== 'box') r = r % 2;
     return { s: this.shape, m: s.mat != null ? s.mat : this.mat, rot: r, flip: this.flip };
   };
   // la pieza cae hasta apoyarse en lo que tenga debajo (o en el suelo)
@@ -145,26 +145,30 @@
     });
     return floor + h / 2;
   };
-  // triángulo en una esquina alta interior: se pega bajo el techo y contra la pared, boca abajo y soldado
+  // refuerzos y triángulos se orientan solos según dónde toques: esquina con el suelo, esquina con el techo o junto a una pared
+  var AUTO = { tri: 'tri', escuadra: 'L', puntal: 'brace', puntalh: 'brace', contrafuerte: 'butt' };
   Builder.prototype.cornerSnap = function (p, x, y) {
-    var s = RS.SHAPES[p.s]; if (s.id !== 'tri') return null;
-    var self = this, ceil = null, walls = [];
+    var s = RS.SHAPES[p.s], kind = AUTO[s.id]; if (!kind) return null;
+    var sz = s.w, Lw = null, Rw = null, self = this;
     this.L.pieces.forEach(function (q) {
-      var a = RS.pieceAABB(q);
-      if (x > a.x0 && x < a.x1 && a.y0 > y - 0.1 && a.y0 - y < 1.6 && a.y0 >= 1 && (!ceil || a.y0 < ceil.y0)) ceil = a;
+      var a = RS.pieceAABB(q); if (a.y1 < y - sz * 0.6 || a.y0 > y + sz * 0.6) return;
+      if (a.x1 <= x + 0.1 && x - a.x1 < sz + 0.6 && (!Lw || a.x1 > Lw.x1)) Lw = a;
+      if (a.x0 >= x - 0.1 && a.x0 - x < sz + 0.6 && (!Rw || a.x0 < Rw.x0)) Rw = a;
     });
-    if (!ceil) return null;
-    var top = ceil.y0, cy = top - 0.5;
-    this.L.pieces.forEach(function (q) { var a = RS.pieceAABB(q); if (a.y0 < top - 0.3 && a.y1 > cy - 0.3) walls.push(a); });
-    var L = null, R = null;
-    walls.forEach(function (a) { if (a.x1 <= x + 0.05 && x - a.x1 < 1.6 && (!L || a.x1 > L.x1)) L = a; if (a.x0 >= x - 0.05 && a.x0 - x < 1.6 && (!R || a.x0 < R.x0)) R = a; });
-    var side = L && R ? (x - L.x1 < R.x0 - x ? 'L' : 'R') : L ? 'L' : R ? 'R' : null; if (!side) return null;
-    var q = Object.assign({}, p, { rot: 4, weld: true, corner: true });
-    q.x = side === 'L' ? L.x1 + 0.5 : R.x0 - 0.5; q.y = cy; q.flip = side === 'L'; // boca abajo: ángulo recto arriba, contra la pared
+    var side = Lw && Rw ? (x - Lw.x1 < Rw.x0 - x ? 'L' : 'R') : Lw ? 'L' : Rw ? 'R' : null; if (!side) return null;
+    var px = side === 'L' ? Lw.x1 + sz / 2 : Rw.x0 - sz / 2, ceil = null;
+    if (kind !== 'butt') this.L.pieces.forEach(function (q) { var a = RS.pieceAABB(q); if (a.x0 < px + sz / 2 - 0.05 && a.x1 > px - sz / 2 + 0.05 && a.y0 > y - 0.2 && a.y0 - y < sz * 0.5 + 0.9 && a.y0 >= sz && (!ceil || a.y0 < ceil.y0)) ceil = a; });
+    var q = Object.assign({}, p, { rot: 0, flip: false }), up = !!ceil;
+    if (up) q.y = ceil.y0 - sz / 2; else q.y = this.dropY(px - sz / 2, px + sz / 2, y - sz / 2, sz) ;
+    q.x = px;
+    if (kind === 'tri' || kind === 'L') { if (up) { q.rot = 4; q.flip = side === 'L'; } else q.flip = side === 'R'; }
+    else if (kind === 'brace') q.flip = up ? side === 'R' : side === 'L';
+    else q.flip = side === 'L'; // contrafuerte: la cara vertical contra la pared
+    if (kind === 'tri' && up) { q.weld = true; q.corner = true; } else { delete q.corner; if (kind === 'tri') q.weld = false; }
     return this.why(q, 0) ? null : q;
   };
   Builder.prototype.snapPiece = function (p, x, y) {
-    var cs = this.cornerSnap(p, x, y); if (cs) { Object.assign(p, cs); return p; }
+    var cs = this.autoOrient !== false ? this.cornerSnap(p, x, y) : null; if (cs) { Object.assign(p, cs); return p; }
     if (p.corner) { p.rot = 0; p.weld = false; p.corner = false; p.flip = false; }
     var z = RS.pieceSize(p), x0 = Math.round((x - z.w / 2) * 2) / 2;
     p.x = x0 + z.w / 2; p.y = this.dropY(x0, x0 + z.w, y - z.h / 2, z.h);
@@ -215,7 +219,7 @@
     this.carry = null; this.ghost = null; this.changed();
   };
   // arrastrar una pieza nueva desde la paleta
-  Builder.prototype.extStart = function (e, shapeIdx) { this.shape = shapeIdx; if (this.tool !== 'place') this.setTool('place'); this.ext = e.pointerId; this.extMove(e); };
+  Builder.prototype.extStart = function (e, shapeIdx) { this.shape = shapeIdx; this.autoOrient = true; if (this.tool !== 'place') this.setTool('place'); this.ext = e.pointerId; this.extMove(e); };
   Builder.prototype.extMove = function (e) { var py = (e.clientY - RS.stage.y) * this.dpr - this.lift(e); if (py > this.H - this.bot) { this.ghost = null; return; } this.move(e); };
   Builder.prototype.extDrop = function (e) {
     var lf = this.lift(e) / this.dpr; this.ext = null; var py = (e.clientY - lf - RS.stage.y) * this.dpr;
