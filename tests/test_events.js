@@ -5,7 +5,7 @@ var src = require('fs').readFileSync(__dirname + '/test_win.js', 'utf8');
 eval(src.slice(src.indexOf('function simulate'), src.indexOf('var sample')));
 var ok = 0, tot = 0, bad = [];
 Object.keys(RS.EVENTS).forEach(function (ev) {
-  for (var n = 1; n <= RS.EVENT_LEVELS; n++) {
+  for (var n = +(process.argv[2] || 1); n <= RS.EVENT_LEVELS; n++) {
     var L = RS.makeEventLevel(ev, n), P = new RS.Phys(L), moved = 0;
     for (var i = 0; i < 300; i++) P.step(1 / 60);
     P.blocks.forEach(function (u) { var p = u.body.getPosition(); if (Math.hypot(p.x - u.p.x, p.y - u.p.y) > 0.25) moved++; });

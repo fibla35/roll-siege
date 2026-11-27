@@ -172,6 +172,9 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     });
     L.arms = L.arms.concat([L.arms[1] || 0]); // un armadillo extra: los eventos son para disfrutar
     L.ev = ev; L.n = n; L.boss = false; L.weather = E.weather; L.tod = n % 2 ? E.tod : null; L.wind = 0;
+    if (n === RS.EVENT_LEVELS && E.boss != null) { // jefe del evento al final, junto a la fortaleza
+      L.racs.push({ x: L.end + 0.2, y: 0, t: 0, boss: true, bi: E.boss, w: E.baseW, name: RS.BOSSES[E.boss].name }); L.end += 1.5; L.boss = true;
+    }
     L.decoSheet = E.deco; L.deco = [];
     var cnt = RS.atlas && RS.atlas[E.deco] ? RS.atlas[E.deco].length : 12;
     for (var k = 0; k < 3; k++) L.deco.push({ d: (n * 5 + k * 7) % cnt, x: 3 + k * 4.2, y: 0, w: 1.5 });

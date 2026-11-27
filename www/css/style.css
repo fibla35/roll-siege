@@ -235,7 +235,8 @@ input, select { font-family: Nunito; font-weight: 800; font-size: calc(3 * var(-
 .boost .bp { display: flex; align-items: center; gap: 4px; font-weight: 900; font-size: calc(2.6 * var(--vh)); } .boost .bp img, #prep_go img { height: calc(3.6 * var(--vh)); }
 .boost .chk { position: absolute; top: 4px; right: 8px; color: #2e9e3a; font-size: calc(4 * var(--vh)); }
 .wheelbox { position: relative; } #wheel { width: calc(46 * var(--vh)); height: calc(46 * var(--vh)); display: block; }
-.wheelptr { position: absolute; top: calc(-3 * var(--vh)); left: 50%; transform: translateX(-50%); font-size: calc(6 * var(--vh)); color: #e53935; text-shadow: 0 2px 0 #fff; }
+.wheelptr { position: absolute; top: calc(-4 * var(--vh)); left: 50%; transform: translateX(-50%); height: calc(9 * var(--vh)); filter: drop-shadow(0 3px 2px rgba(0,0,0,.5)); }
+.ribbon2 { background: url(../img/ui/ribbon2.webp) center/100% 100% no-repeat; padding: calc(1.2 * var(--vh)) calc(9 * var(--vh)) calc(2.6 * var(--vh)); color: #fff; text-shadow: 0 3px 0 #6b0f0f; }
 .tut { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 5; }
 .tut.show { display: block; }
 .tuttxt { position: absolute; left: 50%; top: calc(30 * var(--vh)); transform: translateX(-50%); background: rgba(30,16,6,.9); border: 3px solid #ffd23f; border-radius: calc(2 * var(--vh)); padding: calc(1.4 * var(--vh)) calc(3 * var(--vh)); font-family: Lilita, sans-serif; font-size: calc(3.6 * var(--vh)); color: #fff4d6; text-align: center; max-width: calc(70 * var(--vw)); }
@@ -267,3 +268,7 @@ input, select { font-family: Nunito; font-weight: 800; font-size: calc(3 * var(-
 .evskins canvas.no { filter: grayscale(1) brightness(.45); }
 .evcard.closed .evgrid { opacity: .5; }
 .skins .tb canvas { width: calc(6 * var(--vh)); height: calc(6 * var(--vh)); display: block; margin: 0 auto; }
+
+.boost .bi img { height: calc(8 * var(--vh)); display: block; }
+.hbtn .evi { height: calc(6 * var(--vh)); }
+.evcard h3 img { height: calc(6 * var(--vh)); vertical-align: middle; margin-right: calc(.5 * var(--vw)); }

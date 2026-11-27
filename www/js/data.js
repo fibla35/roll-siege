@@ -77,6 +77,8 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     // Mares Bandidos: hojas boss5 (filas 0-2) y boss6 (filas 0-2)
     { name: 'Lobo de Mar', act: 'bomb' }, { name: 'Reina Sirena', act: 'wardAll' }, { name: 'Rey del Kraken', act: 'repairAll' },
     { name: 'Capitana Perla', act: 'sling' }, { name: 'Barbacalavera', act: 'bomb' }, { name: 'Almirante Espectro', act: 'freezeCannon' },
+    // jefes de evento (hoja boss7)
+    { name: 'Rey Calabaza', act: 'pie' }, { name: 'Yeti de las Nieves', act: 'freezeCannon' }, { name: 'Capitán Surfero', act: 'bomb' },
   ];
   RS.bossIdx = function (w) { var W = RS.WORLDS[w - 1]; return W && W.boss != null ? W.boss : (w - 1) % 12; };
   RS.WIND = { 3: 1.2, 8: 2.6, 10: 1.6, 11: 0.8, 13: 0.6, 16: 2.4, 18: 1.0 }; // viento por mundo (m/s² hacia la izquierda o la derecha)
@@ -139,8 +141,8 @@ var RS = typeof RS !== 'undefined' ? RS : {};
   RS.SKIN_SHEETS = ['arm_skins', 'arm_skins_hal', 'arm_skins_nav', 'arm_skins_rob', 'arm_skins_dep', 'arm_skins_mit'];
   // eventos de temporada: 10 niveles con mapaches, fondo y decorado propios; las skins se ganan jugando
   RS.EVENTS = {
-    hal: { id: 'hal', name: 'Noche de Calabazas', from: [10, 1], to: [11, 10], bg: 'hal', deco: 'deco_hal', music: 'RSM16', baseW: 7, weather: 'fireflies', tod: 'night', skins: [6, 7, 8, 9, 10, 11], color: '#e67e22', icon: '🎃' },
-    nav: { id: 'nav', name: 'Navidad Bandida', from: [12, 1], to: [1, 15], bg: 'nav', deco: 'deco_nav', music: 'RSM05', baseW: 8, weather: 'snow', tod: 'dusk', skins: [12, 13, 14, 15, 16, 17], color: '#c0392b', icon: '🎄' },
+    hal: { id: 'hal', name: 'Noche de Calabazas', from: [10, 1], to: [11, 10], bg: 'hal', deco: 'deco_hal', music: 'RSM16', baseW: 7, weather: 'fireflies', tod: 'night', skins: [6, 7, 8, 9, 10, 11], color: '#e67e22', icon: '🎃', ico: 'ico_hal', boss: 18 },
+    nav: { id: 'nav', name: 'Navidad Bandida', from: [12, 1], to: [1, 15], bg: 'nav', deco: 'deco_nav', music: 'RSM05', baseW: 8, weather: 'snow', tod: 'dusk', skins: [12, 13, 14, 15, 16, 17], color: '#c0392b', icon: '🎄', ico: 'ico_nav', boss: 19 },
   };
   RS.EVENT_LEVELS = 10;
   RS.eventActive = function (id, d) {

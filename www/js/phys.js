@@ -92,7 +92,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     b.createFixture(pl.Box(w / 2 * 0.9, h / 2 * 0.95), { density: T.dens * (r.boss ? 1.6 : 1), friction: 0.8, restitution: 0.05 });
     if (T.fly && !r.boss) b.setGravityScale(0);
     var hp = r.boss ? 420 + 30 * (r.w || 1) : T.hp;
-    var ud = { rac: true, idx: i, t: r.t, T: T, boss: !!r.boss, bi: r.boss ? RS.bossIdx(r.w || 1) : 0, w: w, h: h, hp: hp, hp0: hp, x0: r.x, y0: r.y + h / 2, ko: false, body: b, flying: !!T.fly && !r.boss, shield: false, helmet: false, koT: 0 };
+    var ud = { rac: true, idx: i, t: r.t, T: T, boss: !!r.boss, bi: r.boss ? (r.bi != null ? r.bi : RS.bossIdx(r.w || 1)) : 0, w: w, h: h, hp: hp, hp0: hp, x0: r.x, y0: r.y + h / 2, ko: false, body: b, flying: !!T.fly && !r.boss, shield: false, helmet: false, koT: 0 };
     b.setUserData(ud); this.racs.push(ud);
   };
   Phys.prototype.racsLeft = function () { return this.racs.filter(function (r) { return !r.ko; }).length; };

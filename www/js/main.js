@@ -97,7 +97,7 @@
     $('h_coins').textContent = S.coins; $('h_troph').textContent = S.trophies; $('h_stars').textContent = totalStars();
     $('h_fname').textContent = S.name; RS.Extras.daily(); RS.Extras.badges();
     var liveEv = Object.keys(RS.EVENTS).filter(function (e) { return RS.eventActive(e); })[0];
-    $('hb_evi').textContent = liveEv ? RS.EVENTS[liveEv].icon : '🎉'; $('hb_ev').style.display = liveEv && !S.stars[evKey(liveEv, 10)] ? 'block' : 'none';
+    $('hb_evi').src = 'img/ui/' + (liveEv ? RS.EVENTS[liveEv].ico : 'ico_events') + '.webp'; $('hb_ev').style.display = liveEv && !S.stars[evKey(liveEv, 10)] ? 'block' : 'none';
     if (RS.Extras.wheelDue()) setTimeout(function () { if (cur === 'home' && !document.querySelector('.modal.show')) RS.Extras.wheel(); }, 700);
   };
 
@@ -210,7 +210,7 @@
       d.className = 'evcard' + (open ? '' : ' closed'); d.style.backgroundImage = 'url(img/bg_' + E.bg + '.webp)';
       var m = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
       var when = E.from[1] + ' ' + m[E.from[0]] + ' – ' + E.to[1] + ' ' + m[E.to[0]];
-      d.innerHTML = '<h3>' + E.icon + ' ' + E.name + '</h3><div class="evd">' + (live ? '<b>¡En marcha!</b> · ' : open ? '<b>Modo pruebas</b> · ' : 'Próximamente · ') + when + ' · 10 niveles · gana 6 skins de Bolo</div>';
+      d.innerHTML = '<h3><img src="img/ui/' + E.ico + '.webp" alt="">' + E.name + '</h3><div class="evd">' + (live ? '<b>¡En marcha!</b> · ' : open ? '<b>Modo pruebas</b> · ' : 'Próximamente · ') + when + ' · 10 niveles · gana 6 skins de Bolo</div>';
       var g = document.createElement('div'); g.className = 'evgrid';
       for (var n = 1; n <= RS.EVENT_LEVELS; n++) (function (n) {
         var lo = open && (n === 1 || S.unlockAll || !!S.stars[evKey(ev, n - 1)]), st = S.stars[evKey(ev, n)] || 0, b = document.createElement('button');

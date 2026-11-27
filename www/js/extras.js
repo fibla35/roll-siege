@@ -219,9 +219,9 @@
 
   // ---------- potenciadores ----------
   E.BOOSTS = [
-    { id: 'aim', name: 'Mira láser', ico: '🎯', price: 80, d: 'Ves la trayectoria completa (con viento)' },
-    { id: 'power', name: 'Pólvora extra', ico: '💥', price: 60, d: '+15 % de fuerza en todos los disparos' },
-    { id: 'extra', name: 'Armadillo extra', ico: '🛡', price: 120, d: 'Un armadillo más en la cola' },
+    { id: 'aim', name: 'Mira láser', ico: '🎯', img: 'ico_aim', price: 80, d: 'Ves la trayectoria completa (con viento)' },
+    { id: 'power', name: 'Pólvora extra', ico: '💥', img: 'ico_power', price: 60, d: '+15 % de fuerza en todos los disparos' },
+    { id: 'extra', name: 'Armadillo extra', ico: '🛡', img: 'ico_extra', price: 120, d: 'Un armadillo más en la cola' },
   ];
   var sel = {};
   E.prep = function (title, cb) {
@@ -231,7 +231,7 @@
       var box = $('prep_list'); box.innerHTML = '';
       E.BOOSTS.forEach(function (B) {
         var have = s.boosts[B.id] || 0, d = document.createElement('button'); d.className = 'boost' + (sel[B.id] ? ' sel' : '');
-        d.innerHTML = '<span class="bi">' + B.ico + '</span><b>' + B.name + '</b><span class="bd">' + B.d + '</span><span class="bp">' + (have ? '🎁 Tienes ' + have : '<img src="img/ui/coin.webp">' + B.price) + '</span>' + (sel[B.id] ? '<span class="chk">✔</span>' : '');
+        d.innerHTML = '<span class="bi">' + (B.img ? '<img src="img/ui/' + B.img + '.webp" alt="">' : B.ico) + '</span><b>' + B.name + '</b><span class="bd">' + B.d + '</span><span class="bp">' + (have ? '🎁 Tienes ' + have : '<img src="img/ui/coin.webp">' + B.price) + '</span>' + (sel[B.id] ? '<span class="chk">✔</span>' : '');
         d.onclick = function () {
           if (!sel[B.id] && !have && s.coins < B.price) return toast('Te faltan ' + (B.price - s.coins) + ' monedas');
           sel[B.id] = !sel[B.id]; RS.Audio.sfx('click'); draw();
@@ -251,38 +251,49 @@
   };
 
   // ---------- ruleta de premio diario ----------
+  // 9 casillas del disco dibujado (radios medidos en la imagen, grados en sentido antihorario desde la derecha)
+  E.WHEEL_B = [15.1, 54.7, 90, 123.6, 163.9, 206.1, 244.6, 289, 332.6];
   E.PRIZES = [
-    { t: '50', ico: '🪙', c: '#f0a020', give: function (s) { s.coins += 50; return '+50 monedas'; } },
-    { t: '🎯', ico: '🎯', c: '#e53935', give: function (s) { s.boosts.aim = (s.boosts.aim || 0) + 2; return '2 Miras láser'; } },
-    { t: '100', ico: '🪙', c: '#2e7dd1', give: function (s) { s.coins += 100; return '+100 monedas'; } },
-    { t: '💥', ico: '💥', c: '#7d3cb5', give: function (s) { s.boosts.power = (s.boosts.power || 0) + 2; return '2 Pólvoras extra'; } },
-    { t: '200', ico: '🪙', c: '#1f9e7a', give: function (s) { s.coins += 200; return '+200 monedas'; } },
-    { t: '🛡', ico: '🛡', c: '#c0461c', give: function (s) { s.boosts.extra = (s.boosts.extra || 0) + 1; return '1 Armadillo extra'; } },
-    { t: '📦', ico: '📦', c: '#8b5a2b', give: function (s) { s.chests.push(0); return 'Cofre de madera (en la Tienda)'; } },
-    { t: '🎁', ico: '🎁', c: '#d4af37', give: function (s) { s.chests.push(1); return '¡Cofre de plata! (en la Tienda)'; } },
+    { ico: 'ico_bag', t: '50', w: 14, give: function (s) { s.coins += 50; return '+50 monedas'; } },
+    { ico: 'ico_aim', t: 'x2', w: 12, give: function (s) { s.boosts.aim = (s.boosts.aim || 0) + 2; return '2 Miras láser'; } },
+    { ico: 'ico_bag', t: '100', w: 14, give: function (s) { s.coins += 100; return '+100 monedas'; } },
+    { ico: 'ico_chest', t: '', w: 8, give: function (s) { s.chests.push(0); return 'Cofre de madera (en la Tienda)'; } },
+    { ico: 'ico_power', t: 'x2', w: 12, give: function (s) { s.boosts.power = (s.boosts.power || 0) + 2; return '2 Pólvoras extra'; } },
+    { ico: 'ico_coins', t: '200', w: 10, give: function (s) { s.coins += 200; return '+200 monedas'; } },
+    { ico: 'ico_gem', t: '500', w: 3, give: function (s) { s.coins += 500; return '¡PREMIO GORDO! +500 monedas'; } },
+    { ico: 'ico_extra', t: '', w: 8, give: function (s) { s.boosts.extra = (s.boosts.extra || 0) + 1; return '1 Armadillo extra'; } },
+    { ico: 'ico_cards', t: 'x4', w: 10, give: function (s) { var k = Math.floor(Math.random() * 6); s.cards[k] = (s.cards[k] || 0) + 4; return '4 cartas de ' + RS.ARMS[k].name; } },
   ];
+  function secMid(i) { var B = E.WHEEL_B, a0 = B[i], a1 = i + 1 < B.length ? B[i + 1] : B[0] + 360; return (a0 + a1) / 2 * Math.PI / 180; }
+  function wimg(n) { if (!RS.img[n]) RS.loadImg(n, 'img/ui/' + n + '.webp'); return RS.img[n]; }
   function drawWheel(rot) {
-    var cv = $('wheel'), c = cv.getContext('2d'), R = 250, n = E.PRIZES.length;
-    c.clearRect(0, 0, 520, 520); c.save(); c.translate(260, 260); c.rotate(rot);
+    var cv = $('wheel'), c = cv.getContext('2d'), S0 = 520, disc = wimg('wheel_disc');
+    c.clearRect(0, 0, S0, S0); c.save(); c.translate(S0 / 2, S0 / 2); c.rotate(rot);
+    var dw = 500, dh = disc ? dw * disc.height / disc.width : 500, R = dw / 2;
+    if (disc) c.drawImage(disc, -dw / 2, -dh / 2, dw, dh);
     E.PRIZES.forEach(function (P, i) {
-      var a0 = i * 2 * Math.PI / n, a1 = a0 + 2 * Math.PI / n;
-      c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, R, a0, a1); c.closePath(); c.fillStyle = P.c; c.fill(); c.strokeStyle = '#fff4d6'; c.lineWidth = 5; c.stroke();
-      c.save(); c.rotate(a0 + Math.PI / n); c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '54px Lilita, sans-serif'; c.fillStyle = '#fff'; c.fillText(P.t, R * 0.66, 0); c.restore();
+      var th = secMid(i), ic = wimg(P.ico);
+      c.save(); c.rotate(-th); c.translate(R * 0.6, 0); c.rotate(Math.PI / 2);
+      if (ic) { var s = 78, h = s * ic.height / ic.width; c.drawImage(ic, -s / 2, -h / 2 - (P.t ? 10 : 0), s, h); }
+      if (P.t) { c.font = '30px Lilita, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 6; c.strokeStyle = '#3a1e0a'; c.strokeText(P.t, 0, 36); c.fillStyle = '#fff'; c.fillText(P.t, 0, 36); }
+      c.restore();
     });
-    c.beginPath(); c.arc(0, 0, 34, 0, 7); c.fillStyle = '#3a1e0a'; c.fill(); c.strokeStyle = '#ffd23f'; c.lineWidth = 6; c.stroke();
     c.restore();
+    var bt = wimg('wheel_btn'); if (bt) c.drawImage(bt, S0 / 2 - 50, S0 / 2 - 50, 100, 100);
   }
+  E.UI_IMGS = ['wheel_disc', 'wheel_ptr', 'wheel_btn', 'ribbon2', 'ico_bag', 'ico_coins', 'ico_cards', 'ico_chest', 'ico_aim', 'ico_power', 'ico_extra', 'ico_gem', 'ico_events', 'ico_hal', 'ico_nav', 'ico_skin'];
+  E.loadUI = function () { return Promise.all(E.UI_IMGS.map(function (n) { return RS.loadImg(n, 'img/ui/' + n + '.webp'); })); };
   E.wheelDue = function () { return S().wheelDay !== dayKey(); };
   E.wheel = function () {
     var s = S(); s.boosts = s.boosts || {};
-    drawWheel(0); $('wheel_res').textContent = 'Gira una vez al día'; $('wheel_spin').style.display = ''; $('wheel_ok').style.display = 'none';
+    E.loadUI().then(function () { drawWheel(0); }); $('wheel_res').textContent = 'Gira una vez al día'; $('wheel_spin').style.display = ''; $('wheel_ok').style.display = 'none';
     $('wheelm').classList.add('show');
     $('wheel_spin').onclick = function () {
       if (!E.wheelDue()) return;
       $('wheel_spin').style.display = 'none'; s.wheelDay = dayKey(); save();
-      var n = E.PRIZES.length, w = [14, 12, 14, 12, 8, 8, 20, 4], tot = w.reduce(function (a, b) { return a + b; }, 0), x = Math.random() * tot, k = 0;
+      var n = E.PRIZES.length, w = E.PRIZES.map(function (p) { return p.w; }), tot = w.reduce(function (a, b) { return a + b; }, 0), x = Math.random() * tot, k = 0;
       for (var i = 0; i < n; i++) { x -= w[i]; if (x < 0) { k = i; break; } }
-      var target = -Math.PI / 2 - (k + 0.5) * 2 * Math.PI / n + 2 * Math.PI * 6, t0 = performance.now(), dur = 3800, last = -1;
+      var target = secMid(k) - Math.PI / 2 + (Math.random() - 0.5) * 0.25 + 2 * Math.PI * 6, t0 = performance.now(), dur = 3800, last = -1;
       (function anim(t) {
         var p = Math.min(1, (t - t0) / dur), e2 = 1 - Math.pow(1 - p, 3), r = target * e2; drawWheel(r);
         var seg = Math.floor(((r % (2 * Math.PI)) / (2 * Math.PI / n))); if (seg !== last) { last = seg; RS.Audio.sfx('click', 0.3); }

@@ -458,7 +458,7 @@
   // turno de los mapaches: cada especialista vivo hace su jugada (como mucho 2 por turno)
   Game.prototype.enemyTurn = function () {
     var self = this, P = this.phys, alive = P.racs.filter(function (r) { return !r.ko; }), acts = [];
-    alive.forEach(function (r) { var a = r.boss ? RS.BOSSES[RS.bossIdx(self.level.w || 1)].act : r.T.act; if (a) acts.push({ r: r, a: a }); });
+    alive.forEach(function (r) { var a = r.boss ? RS.BOSSES[r.bi != null ? r.bi : RS.bossIdx(self.level.w || 1)].act : r.T.act; if (a) acts.push({ r: r, a: a }); });
     if (!acts.length) return false;
     acts.sort(function () { return Math.random() - 0.5; }); acts = acts.slice(0, 2);
     var g = this.cannonGeo();
