@@ -211,6 +211,110 @@
     save(); E.checkAch();
   };
 
+  // ---------- potenciadores ----------
+  E.BOOSTS = [
+    { id: 'aim', name: 'Mira láser', ico: '🎯', price: 80, d: 'Ves la trayectoria completa (con viento)' },
+    { id: 'power', name: 'Pólvora extra', ico: '💥', price: 60, d: '+15 % de fuerza en todos los disparos' },
+    { id: 'extra', name: 'Armadillo extra', ico: '🛡', price: 120, d: 'Un armadillo más en la cola' },
+  ];
+  var sel = {};
+  E.prep = function (title, cb) {
+    var s = S(); s.boosts = s.boosts || {}; sel = {};
+    $('prep_t').textContent = title;
+    var draw = function () {
+      var box = $('prep_list'); box.innerHTML = '';
+      E.BOOSTS.forEach(function (B) {
+        var have = s.boosts[B.id] || 0, d = document.createElement('button'); d.className = 'boost' + (sel[B.id] ? ' sel' : '');
+        d.innerHTML = '<span class="bi">' + B.ico + '</span><b>' + B.name + '</b><span class="bd">' + B.d + '</span><span class="bp">' + (have ? '🎁 Tienes ' + have : '<img src="img/ui/coin.webp">' + B.price) + '</span>' + (sel[B.id] ? '<span class="chk">✔</span>' : '');
+        d.onclick = function () {
+          if (!sel[B.id] && !have && s.coins < B.price) return toast('Te faltan ' + (B.price - s.coins) + ' monedas');
+          sel[B.id] = !sel[B.id]; RS.Audio.sfx('click'); draw();
+        };
+        box.appendChild(d);
+      });
+      var cost = E.BOOSTS.reduce(function (a, B) { return a + (sel[B.id] && !(s.boosts[B.id] > 0) ? B.price : 0); }, 0);
+      $('prep_go').innerHTML = '¡Al asedio!' + (cost ? ' <img src="img/ui/coin.webp">' + cost : '');
+    };
+    draw(); $('prep').classList.add('show');
+    var go = function (use) {
+      $('prep').classList.remove('show'); var b = {};
+      if (use) E.BOOSTS.forEach(function (B) { if (!sel[B.id]) return; if (s.boosts[B.id] > 0) s.boosts[B.id]--; else { if (s.coins < B.price) return; s.coins -= B.price; } b[B.id] = true; });
+      save(); cb(b);
+    };
+    $('prep_go').onclick = function () { go(true); }; $('prep_no').onclick = function () { go(false); };
+  };
+
+  // ---------- ruleta de premio diario ----------
+  E.PRIZES = [
+    { t: '50', ico: '🪙', c: '#f0a020', give: function (s) { s.coins += 50; return '+50 monedas'; } },
+    { t: '🎯', ico: '🎯', c: '#e53935', give: function (s) { s.boosts.aim = (s.boosts.aim || 0) + 2; return '2 Miras láser'; } },
+    { t: '100', ico: '🪙', c: '#2e7dd1', give: function (s) { s.coins += 100; return '+100 monedas'; } },
+    { t: '💥', ico: '💥', c: '#7d3cb5', give: function (s) { s.boosts.power = (s.boosts.power || 0) + 2; return '2 Pólvoras extra'; } },
+    { t: '200', ico: '🪙', c: '#1f9e7a', give: function (s) { s.coins += 200; return '+200 monedas'; } },
+    { t: '🛡', ico: '🛡', c: '#c0461c', give: function (s) { s.boosts.extra = (s.boosts.extra || 0) + 1; return '1 Armadillo extra'; } },
+    { t: '📦', ico: '📦', c: '#8b5a2b', give: function (s) { s.chests.push(0); return 'Cofre de madera (en la Tienda)'; } },
+    { t: '🎁', ico: '🎁', c: '#d4af37', give: function (s) { s.chests.push(1); return '¡Cofre de plata! (en la Tienda)'; } },
+  ];
+  function drawWheel(rot) {
+    var cv = $('wheel'), c = cv.getContext('2d'), R = 250, n = E.PRIZES.length;
+    c.clearRect(0, 0, 520, 520); c.save(); c.translate(260, 260); c.rotate(rot);
+    E.PRIZES.forEach(function (P, i) {
+      var a0 = i * 2 * Math.PI / n, a1 = a0 + 2 * Math.PI / n;
+      c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, R, a0, a1); c.closePath(); c.fillStyle = P.c; c.fill(); c.strokeStyle = '#fff4d6'; c.lineWidth = 5; c.stroke();
+      c.save(); c.rotate(a0 + Math.PI / n); c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '54px Lilita, sans-serif'; c.fillStyle = '#fff'; c.fillText(P.t, R * 0.66, 0); c.restore();
+    });
+    c.beginPath(); c.arc(0, 0, 34, 0, 7); c.fillStyle = '#3a1e0a'; c.fill(); c.strokeStyle = '#ffd23f'; c.lineWidth = 6; c.stroke();
+    c.restore();
+  }
+  E.wheelDue = function () { return S().wheelDay !== dayKey(); };
+  E.wheel = function () {
+    var s = S(); s.boosts = s.boosts || {};
+    drawWheel(0); $('wheel_res').textContent = 'Gira una vez al día'; $('wheel_spin').style.display = ''; $('wheel_ok').style.display = 'none';
+    $('wheelm').classList.add('show');
+    $('wheel_spin').onclick = function () {
+      if (!E.wheelDue()) return;
+      $('wheel_spin').style.display = 'none'; s.wheelDay = dayKey(); save();
+      var n = E.PRIZES.length, w = [14, 12, 14, 12, 8, 8, 20, 4], tot = w.reduce(function (a, b) { return a + b; }, 0), x = Math.random() * tot, k = 0;
+      for (var i = 0; i < n; i++) { x -= w[i]; if (x < 0) { k = i; break; } }
+      var target = -Math.PI / 2 - (k + 0.5) * 2 * Math.PI / n + 2 * Math.PI * 6, t0 = performance.now(), dur = 3800, last = -1;
+      (function anim(t) {
+        var p = Math.min(1, (t - t0) / dur), e2 = 1 - Math.pow(1 - p, 3), r = target * e2; drawWheel(r);
+        var seg = Math.floor(((r % (2 * Math.PI)) / (2 * Math.PI / n))); if (seg !== last) { last = seg; RS.Audio.sfx('click', 0.3); }
+        if (p < 1) requestAnimationFrame(anim);
+        else { var txt = E.PRIZES[k].give(s); save(); RS.Audio.sfx('star'); RS.vib(80); $('wheel_res').textContent = '🎉 ' + txt; $('wheel_ok').style.display = ''; E.badges(); }
+      })(t0);
+    };
+    $('wheel_ok').onclick = function () { $('wheelm').classList.remove('show'); if (RS.curScreen() === 'home') RS.refreshHome(); };
+  };
+
+  // ---------- tutorial de los primeros niveles ----------
+  var TUT = [
+    { id: 'drag', when: function (g) { return g.state === 'aim' && !g.aim; }, txt: 'Arrastra hacia atrás para cargar pólvora y suelta para disparar', hand: 'drag' },
+    { id: 'abil', when: function (g) { return g.state === 'flight' && g.flightT > 0.25 && g.flightT < 1.6; }, txt: '¡Toca la pantalla ahora para usar su habilidad!', hand: 'tap', slow: true },
+    { id: 'queue', when: function (g) { return g.state === 'aim' && !g.aim && g.queue.filter(function (q) { return q.used; }).length >= 1; }, txt: 'Toca un retrato para elegir qué armadillo disparas', hand: 'queue' },
+    { id: 'zoom', when: function (g) { return g.state === 'aim' && !g.aim && (g.level.n || 0) >= 3; }, txt: 'Pellizca con dos dedos para acercar · arrastra a la derecha para mirar la fortaleza', hand: 'pinch' },
+  ];
+  E.tutTick = function (g) {
+    var s = S(); s.tut = s.tut || {}; var el = $('tut');
+    if (!g || g.ended || g.defense || (g.level.w && g.level.w > 1)) { el.classList.remove('show'); return; }
+    var cur = E._tut;
+    if (cur) {
+      if (!cur.when(g) || (cur.id === 'drag' && g.aim)) { s.tut[cur.id] = 1; save(); E._tut = null; el.classList.remove('show'); if (cur.slow) g.slowT = 0; }
+      return;
+    }
+    for (var i = 0; i < TUT.length; i++) {
+      var T = TUT[i]; if (s.tut[T.id]) continue;
+      if (T.when(g)) {
+        E._tut = T; $('tut_txt').textContent = T.txt; el.className = 'tut show ' + T.hand; $('hint').style.opacity = 0; $('armtip').classList.remove('show');
+        if (T.slow) g.slowT = 1.4;
+        if (T.id === 'queue') s.tut.queue = 1;
+        if (T.id === 'zoom') { s.tut.zoom = 1; setTimeout(function () { el.classList.remove('show'); E._tut = null; }, 4500); }
+        save();
+      }
+      break;
+    }
+  };
+
   // ---------- puntos rojos de aviso en el inicio ----------
   E.badges = function () {
     var s = S(); if (!s || !s.st) return;

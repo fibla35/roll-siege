@@ -1,0 +1,20 @@
+const puppeteer = require('puppeteer-core');const sleep=(m)=>new Promise(r=>setTimeout(r,m));
+(async()=>{const b=await puppeteer.launch({executablePath:'/usr/bin/google-chrome',args:['--no-sandbox']});const p=await b.newPage();
+const errs=[];p.on('pageerror',e=>errs.push('ERR '+e.message));
+await p.setViewport({width:960,height:444,deviceScaleFactor:2});
+await p.goto('http://localhost:8123/index.html');await p.evaluate(()=>localStorage.setItem('rollsiege_v1',JSON.stringify({clan:'oeste',name:'F',coins:500})));await p.reload();
+await p.waitForFunction(()=>document.getElementById('title').classList.contains('show'),{timeout:30000});
+const log=[];const ok=(n,c)=>log.push((c?'OK  ':'FAIL')+' '+n);const sh=n=>p.screenshot({path:'shots/t_'+n+'.png'});
+await p.click('[data-go=start]');await sleep(1500);ok('ruleta al entrar',await p.evaluate(()=>document.getElementById('wheelm').classList.contains('show')));await sh('wheel');
+await p.click('#wheel_spin');await sleep(4500);await sh('wheel2');ok('premio ruleta',await p.evaluate(()=>document.getElementById('wheel_res').textContent.includes('🎉')));
+await p.click('#wheel_ok');await sleep(300);
+await p.evaluate(()=>RS._dbg.startLevel(1,1));await sleep(2600);await sh('tut1');ok('tutorial arrastrar',await p.evaluate(()=>document.getElementById('tut').classList.contains('drag')));
+const st=await p.evaluate(()=>RS.stage);await p.mouse.move(st.x+st.w*0.3,st.y+st.h*0.5);await p.mouse.down();for(let i=1;i<=10;i++){await p.mouse.move(st.x+st.w*0.3-15*i,st.y+st.h*0.5+8*i);await sleep(20)}await p.mouse.up();
+await sleep(500);await sh('tut2');ok('tutorial habilidad en vuelo',await p.evaluate(()=>document.getElementById('tut').classList.contains('tap')));
+await p.mouse.click(st.x+st.w*0.6,st.y+st.h*0.4);for(let i=0;i<30;i++){await sleep(300);if(await p.evaluate(()=>RS._dbg.game.state==='aim'||RS._dbg.game.ended))break;}
+await sleep(600);await sh('tut3');ok('tutorial cola',await p.evaluate(()=>document.getElementById('tut').classList.contains('queue')||RS._dbg.game.ended));
+await p.evaluate(()=>RS._dbg.startLevel(1,4));await sleep(600);ok('pantalla de potenciadores',await p.evaluate(()=>document.getElementById('prep').classList.contains('show')));
+await p.click('.boost:nth-child(1)');await p.click('.boost:nth-child(2)');await sh('prep');await p.click('#prep_go');await sleep(2600);
+ok('potenciadores activos',await p.evaluate(()=>{const g=RS._dbg.game;return g.boost.aim&&g.boost.power}));
+await p.mouse.move(st.x+st.w*0.3,st.y+st.h*0.5);await p.mouse.down();for(let i=1;i<=8;i++){await p.mouse.move(st.x+st.w*0.3-14*i,st.y+st.h*0.5+9*i);await sleep(20)}await sh('laser');await p.mouse.up();
+console.log(log.join('\n'));console.log('ERR',errs);await b.close();})();

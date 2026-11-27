@@ -22,6 +22,7 @@
   RS.persist = persist;
   var S = RS.save;
   RS.curScreen = function () { return cur; };
+  RS.refreshHome = function () { $('h_coins').textContent = S.coins; };
 
   // ---------- carga de imágenes ----------
   RS.loadImg = function (name, src) {
@@ -46,7 +47,7 @@
   function show(id) {
     document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('show', s.id === id); });
     cur = id;
-    if (id !== 'hud' && game) { game.destroy(); game = null; }
+    if (id !== 'hud' && game) { game.destroy(); game = null; document.getElementById('tut').classList.remove('show'); RS.Extras._tut = null; }
     if (id !== 'build' && builder) { builder.destroy(); builder = null; }
     if (id !== 'hud' && id !== 'build') clearCanvas();
     if (SCREENS[id]) SCREENS[id]();
@@ -95,6 +96,7 @@
     $('home').style.backgroundImage = 'url(img/bg_' + S.clan + '.webp)';
     $('h_coins').textContent = S.coins; $('h_troph').textContent = S.trophies; $('h_stars').textContent = totalStars();
     $('h_fname').textContent = S.name; RS.Extras.daily(); RS.Extras.badges();
+    if (RS.Extras.wheelDue()) setTimeout(function () { if (cur === 'home' && !document.querySelector('.modal.show')) RS.Extras.wheel(); }, 700);
   };
 
   // ---------- mapa ----------
@@ -146,7 +148,7 @@
       $('hud_lv').textContent = ctx.label;
       if (game) game.destroy();
       game = new RS.Game(cv, level, {
-        style: ctx.style, clan: S.clan, bg: bgKey, cannonLvl: S.cannon, defense: !!ctx.defense,
+        style: ctx.style, clan: S.clan, bg: bgKey, cannonLvl: S.cannon, defense: !!ctx.defense, boost: ctx.boost || {},
         onQueue: drawQueue, onTick: hudTick, onEnd: onEnd, onStat: function (k, v) { RS.Extras.stat(k, v); },
         onAbility: function () { $('hint').style.opacity = 0; },
         onDebuff: function (t) { var el = $('debuff'); if (!t) $('splat').classList.remove('show'); if (t) { el.textContent = t; el.classList.add('show'); } else el.classList.remove('show'); },
@@ -157,7 +159,7 @@
       $('hint').style.opacity = S.seenHint < 3 ? 1 : 0;
       if (S.seenHint < 3) { S.seenHint++; persist(); setTimeout(function () { $('hint').style.opacity = 0; }, 6000); }
       $('debuff').classList.remove('show'); $('splat').classList.remove('show');
-      if (level.racs && level.racs.length && !S.seenRacs) { S.seenRacs = 1; persist(); setTimeout(function () { toast('🦝 ¡Derriba a todos los mapaches! Las gemas son premio extra'); }, 1800); }
+      if (level.racs && level.racs.length && !S.seenRacs && !(ctx.kind === 'camp' && ctx.w === 1 && ctx.n === 1)) { S.seenRacs = 1; persist(); setTimeout(function () { toast('🦝 ¡Derriba a todos los mapaches! Las gemas son premio extra'); }, 1800); }
       RS.Audio.play(ctx.music);
     });
   }
@@ -172,7 +174,7 @@
   }
   RS.levelMusic = levelMusic;
   function canDefend() { return S.layout && S.stable && S.layout.gems && S.layout.gems.length && S.layout.pieces.length; }
-  function startLevel(w, n) {
+  function startLevel(w, n, skipPrep, boost) {
     var W = RS.WORLDS[w - 1];
     if (n % 5 === 0 && n < 20 && canDefend()) {
       var dl = ownLevel(); dl.arms = []; dl.w = w; dl.n = n; dl.racs = [];
@@ -181,7 +183,8 @@
       return;
     }
     var lvl = RS.makeLevel(w, n);
-    startGame(lvl, { kind: 'camp', w: w, n: n, style: 'bandido', bg: W.bg, music: levelMusic(w, n), label: w + '-' + n + (n === 20 ? ' JEFE' : '') });
+    if (!skipPrep && (w > 1 || n >= 4)) return RS.Extras.prep('Nivel ' + w + '-' + n + (n === 20 ? ' · JEFE' : ''), function (b) { startLevel(w, n, true, b); });
+    startGame(lvl, { kind: 'camp', boost: boost || {}, w: w, n: n, style: 'bandido', bg: W.bg, music: levelMusic(w, n), label: w + '-' + n + (n === 20 ? ' JEFE' : '') });
   }
   // al elegir armadillo (o al tocarle el turno) se explica qué hace
   var lastTip = null;
@@ -213,7 +216,7 @@
   }
   var lastScore = -1;
   function hudTick() {
-    if (!game) return;
+    if (!game) return; RS.Extras.tutTick(game);
     var sc = game.phys.score; if (sc !== lastScore) { lastScore = sc; $('hud_score').textContent = sc.toLocaleString('es'); }
     $('hud_gems').textContent = game.phys.gemsLeft();
     var nr = game.phys.racs.length; $('hud_racp').style.display = nr ? '' : 'none'; if (nr) $('hud_racs').textContent = game.phys.racsLeft();
@@ -226,7 +229,7 @@
   $('p_mus').onclick = function () { S.vol.music = S.vol.music ? 0 : 0.6; RS.Audio.setVol('music', S.vol.music); persist(); syncAudioBtns(); };
   $('p_next').onclick = function () { RS.Audio.init(); nextTrack(); };
   $('p_snd').onclick = function () { S.vol.sfx = S.vol.sfx ? 0 : 0.8; RS.Audio.setVol('sfx', S.vol.sfx); persist(); syncAudioBtns(); };
-  function retry() { var c = ctxGame; if (c.defense) return startLevel(c.w, c.n); startGame(c.kind === 'camp' ? RS.makeLevel(c.w, c.n) : c.kind === 'league' ? rivalLevel() : ownLevel(), c); }
+  function retry() { var c = ctxGame; if (c.defense || c.kind === 'camp') return startLevel(c.w, c.n); if (c.kind === 'league') return startLeague(); startGame(c.kind === 'camp' ? RS.makeLevel(c.w, c.n) : c.kind === 'league' ? rivalLevel() : ownLevel(), c); }
   function back() { var k = ctxGame && ctxGame.kind; show(k === 'camp' ? 'levels' : k === 'league' ? 'league' : 'build'); }
 
   function onEnd(r) {
@@ -278,10 +281,11 @@
     r.sign = { x: Math.min.apply(null, r.pieces.map(function (p) { return RS.pieceAABB(p).x0; })) - 2.4, y: 0, name: r.name };
     return r;
   }
-  function startLeague() {
+  function startLeague(skip, boost) {
+    if (!skip) return RS.Extras.prep('Asedio de Liga', function (b) { startLeague(true, b); });
     var r = rivalLevel();
     if (0) r.sign = { x: Math.min.apply(null, r.pieces.map(function (p) { return RS.pieceAABB(p).x0; })) - 2.4, y: 0, name: r.name };
-    startGame(r, { kind: 'league', style: r.clan, bg: r.clan, music: ['RSM10', 'RSM15', 'RSM17', 'RSM18', 'RSM20'][S.rivalSeed % 5], label: r.name });
+    startGame(r, { kind: 'league', boost: boost || {}, style: r.clan, bg: r.clan, music: ['RSM10', 'RSM15', 'RSM17', 'RSM18', 'RSM20'][S.rivalSeed % 5], label: r.name });
   }
   function miniDraw(canvas, lvl, style) {
     var c = canvas.getContext('2d'), W = canvas.width = 400, H = canvas.height = 200;

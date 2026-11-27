@@ -7,3 +7,5 @@ android/app/src/main/assets/public/
 android/capacitor-cordova-android-plugins/build/
 *.iml
 .idea/
+android/app/upload.jks
+*.jks

@@ -170,6 +170,8 @@
     this.cannonLvl = this.o.cannonLvl || 0;
     this.phys = new RS.Phys(level);
     this.queue = level.arms.map(function (a) { return { arm: a, used: false }; });
+    this.boost = this.o.boost || {};
+    if (this.boost.extra) { var pool = [3, 2, 6, 8, 1]; this.queue.push({ arm: pool[Math.floor(Math.random() * pool.length)], used: false, freed: true }); }
     this.sel = 0; this.state = 'aim'; this.parts = []; this.pops = []; this.shake = 0;
     this.defense = !!this.o.defense; if (this.defense) { this.state = 'dwait'; this.dT = -1.5; this.dShots = 3; this.intercepts = 2; }
     this.aim = null; this.power = 0; this.angle = 0.6; this.recoil = 0; this.fireAnim = 0; this.flightT = 0; this.settleT = 0;
@@ -339,7 +341,7 @@
     var q = this.queue[this.sel]; if (!q || q.used) return;
     var over = this.overT > 0.45;
     var ang = this.angle + (over ? (Math.random() - 0.5) * 0.07 : 0) + (this.jitter ? (Math.random() - 0.5) * this.jitter : 0);
-    var g = this.cannonGeo(), pw = this.power * (over ? 1.08 : 1);
+    var g = this.cannonGeo(), pw = this.power * (over ? 1.08 : 1) * (this.boost.power ? 1.15 : 1);
     if (this.cap) pw = Math.min(pw, this.cap);
     this.cap = 0; this.jitter = 0; if (this.o.onDebuff) this.o.onDebuff(null);
     var ub = this.phys.launch(q.arm, g.muzzle, ang, pw); ub.mult *= 1 + 0.08 * (((RS.save && RS.save.armLv && RS.save.armLv[q.arm]) || 1) - 1);
@@ -681,8 +683,13 @@
   Game.prototype.drawAim = function (ctx) {
     var g = this.cannonGeo(), s = this.cam.s, dpr = this.dpr;
     if (this.aim && this.power > 0.05) {
-      var v = RS.PHYS.vMax * this.power, n = Math.round(4 + this.power * 10);
-      for (var i = 1; i <= n; i++) {
+      var v = RS.PHYS.vMax * this.power * (this.boost.power ? 1.15 : 1), n = Math.round(4 + this.power * 10);
+      if (this.boost.aim) {
+        // mira láser: trayectoria completa hasta el suelo, teniendo en cuenta el viento
+        var wnd = this.phys.wind || 0; ctx.save(); ctx.strokeStyle = 'rgba(255,60,40,0.85)'; ctx.lineWidth = 3 * dpr; ctx.setLineDash([10 * dpr, 7 * dpr]); ctx.beginPath();
+        for (var k = 0; k < 160; k++) { var tt = k * 0.03, X = g.muzzle.x + g.dir.x * v * tt + 0.5 * wnd * tt * tt, Y = g.muzzle.y + g.dir.y * v * tt + 0.5 * RS.PHYS.gravity * tt * tt; if (k) ctx.lineTo(this.sx(X), this.sy(Y)); else ctx.moveTo(this.sx(X), this.sy(Y)); if (Y < 0) break; }
+        ctx.stroke(); ctx.restore();
+      } else for (var i = 1; i <= n; i++) {
         var t = i * 0.075, x = g.muzzle.x + g.dir.x * v * t, y = g.muzzle.y + g.dir.y * v * t + 0.5 * RS.PHYS.gravity * t * t;
         RS.drawSp(ctx, 'pow', 4, this.sx(x), this.sy(y), (13 - i * 0.5) * dpr, (13 - i * 0.5) * dpr, 0, false, 1 - i / (n + 2));
       }
