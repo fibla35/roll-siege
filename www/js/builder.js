@@ -274,6 +274,19 @@
 
   // ---------- dibujo ----------
   // modo plano (pantalla azul): fondo limpio, cuadrícula clara y piezas con contorno
+  // fondo de mar limpio: cielo, mar en calma y arena lisa, para que la fortaleza se vea bien
+  Builder.prototype.drawSea = function () {
+    var ctx = this.ctx, W = this.W, H = this.H, s = this.s, y0 = this.sy(0), hz = Math.min(y0 - 1.2 * s, this.sy(3.2));
+    var g = ctx.createLinearGradient(0, 0, 0, hz); g.addColorStop(0, '#5fb6ef'); g.addColorStop(1, '#cdeeff'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, hz + 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    for (var k = 0; k < 4; k++) { var cx = ((k * 0.29 + 0.1) * W - this.cx * s * 0.08) % (W * 1.2), cy = H * (0.12 + (k % 2) * 0.08), r = s * (0.7 + (k % 3) * 0.2);
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.arc(cx + r, cy - r * 0.4, r * 1.2, 0, 7); ctx.arc(cx + r * 2.1, cy, r * 0.9, 0, 7); ctx.fill(); }
+    var g2 = ctx.createLinearGradient(0, hz, 0, y0); g2.addColorStop(0, '#2b8fd6'); g2.addColorStop(1, '#5fd0e6'); ctx.fillStyle = g2; ctx.fillRect(0, hz, W, y0 - hz + 1);
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = Math.max(1, s * 0.04);
+    for (var r2 = 1; r2 < 5; r2++) { var yy = hz + (y0 - hz) * r2 / 5; ctx.beginPath(); for (var xx = -20; xx < W + 20; xx += s * 0.5) { var off = (xx / (s * 0.5) + r2 + this.t * 0.8) % 4; if (off < 1.4) { ctx.moveTo(xx, yy); ctx.lineTo(xx + s * 0.35, yy); } } ctx.stroke(); }
+    var g3 = ctx.createLinearGradient(0, y0, 0, H); g3.addColorStop(0, '#f2d79a'); g3.addColorStop(1, '#c99a55'); ctx.fillStyle = g3; ctx.fillRect(0, y0, W, H - y0);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(0, y0, W, Math.max(2, s * 0.06));
+  };
   Builder.prototype.drawBlue = function () {
     var ctx = this.ctx, W = this.W, H = this.H, s = this.s, self = this, d = this.dpr;
     ctx.fillStyle = '#123a6b'; ctx.fillRect(0, 0, W, H);
@@ -307,12 +320,14 @@
   Builder.prototype.draw = function () {
     var ctx = this.ctx, W = this.W, H = this.H, s = this.s, self = this;
     if (this.blue) return this.drawBlue();
+    if (this.sea) this.drawSea(); else {
     var far = RS.img['bg_' + this.clan];
     if (far) { var fs = Math.max(W / far.width, H / far.height); ctx.drawImage(far, (W - far.width * fs) / 2, (H - far.height * fs) / 2, far.width * fs, far.height * fs); }
     var mid = RS.img['bg_' + this.clan + '_mid'];
     if (mid) { var mh = 6 * s, mw = mid.width * mh / mid.height, mx = this.sx(-12); mx -= Math.ceil((mx + 1) / (mw - 1)) * (mw - 1); for (var x = mx; x < W; x += mw - 1) ctx.drawImage(mid, x, this.sy(0) - mh + 0.3 * s, mw, mh); }
     var gr = RS.img['bg_' + this.clan + '_ground'];
     if (gr) { var gh = 3 * s, gw = gr.width * gh / gr.height, gx0 = this.sx(-12); gx0 -= Math.ceil((gx0 + 1) / (gw - 1)) * (gw - 1); for (var x2 = gx0; x2 < W; x2 += gw - 1) ctx.drawImage(gr, x2, this.sy(0) - gh * 0.1, gw, gh); ctx.fillStyle = '#2a1a10'; ctx.fillRect(0, this.sy(0) + gh * 0.88, W, H); }
+    }
     // rejilla con marcas de altura
     ctx.save(); ctx.lineWidth = 1;
     for (var gx = 0; gx <= GW; gx++) { ctx.strokeStyle = gx % 5 ? 'rgba(255,255,255,0.13)' : 'rgba(255,255,255,0.32)'; ctx.beginPath(); ctx.moveTo(this.sx(gx), this.sy(0)); ctx.lineTo(this.sx(gx), this.sy(GH)); ctx.stroke(); }

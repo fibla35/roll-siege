@@ -137,7 +137,7 @@ EN = {
 'Poner': 'Place', 'Plantillas': 'Templates', 'Mover': 'Move', 'Copiar': 'Copy', 'Quitar': 'Remove', 'Soldar': 'Weld', 'Cambiar material': 'Change material', 'Pintar': 'Paint',
 'Gema': 'Gem', 'Adorno': 'Decoration', 'Mover la vista': 'Pan view', 'diagonal ↗': 'diagonal ↗', 'diagonal ↘': 'diagonal ↘', 'Estructura': 'Structure', 'Refuerzos': 'Reinforcements',
 'Trampas': 'Traps', 'Se desbloquea en el mundo': 'Unlocks in world', 'Deshacer': 'Undo', 'Girar: normal → vertical → diagonales': 'Rotate: normal → vertical → diagonals', 'Giro:': 'Rotation:',
-'Voltear': 'Flip', 'Alejar': 'Zoom out', 'Acercar': 'Zoom in', 'Modo plano (pantalla azul)': 'Blueprint mode (blue screen)', 'Nombre de la fortaleza': 'Fortress name', 'Nombre:': 'Name:',
+'Voltear': 'Flip', 'Alejar': 'Zoom out', 'Acercar': 'Zoom in', 'Modo plano (pantalla azul)': 'Blueprint mode (blue screen)', 'Fondo de mar (limpio)': 'Sea background (clean)', 'Nombre de la fortaleza': 'Fortress name', 'Nombre:': 'Name:',
 'Vaciar todo': 'Clear all', '¿Borrar toda la fortaleza?': 'Delete the whole fortress?', 'Coste': 'Cost',
 'toca donde quieras y se apoya sola encima de lo que haya. Apila pisos para subir alto.': 'tap anywhere and it rests on whatever is below. Stack floors to build high.',
 'Toca una pieza para cambiarle el material.': 'Tap a piece to change its material.', 'Toca piezas para pintarlas (la última muestra quita la pintura).': 'Tap pieces to paint them (the last swatch removes paint).',

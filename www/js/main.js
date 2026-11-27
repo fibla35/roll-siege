@@ -500,6 +500,7 @@
     ib('⇋', 'Voltear', B.flip, function () { B.flip = !B.flip; if (B.carry) B.carry.flip = !B.carry.flip; buildUI(); });
     ib('−', 'Alejar', false, function () { B.zoom(1 / 1.3); });
     ib('+', 'Acercar', false, function () { B.zoom(1.3); });
+    ib('🌊', 'Fondo de mar (limpio)', B.sea && !B.blue, function () { B.sea = !B.sea; if (B.sea) B.blue = false; S.buildSea = B.sea; S.blueprint = B.blue; persist(); buildUI(); });
     ib('📐', 'Modo plano (pantalla azul)', B.blue, function () { B.blue = !B.blue; S.blueprint = B.blue; persist(); buildUI(); });
     ib('✏', 'Nombre de la fortaleza', false, function () { ask('Nombre de tu fortaleza', function (v) { v = (v || '').trim(); if (v) { S.name = v.slice(0, 20); persist(); if (B.L.sign) B.L.sign.name = S.name; toast('Nombre: ' + S.name); } }, S.name); });
     ib('✖', 'Vaciar todo', false, function () { ask('¿Borrar toda la fortaleza?', function () { B.snap(); B.L.pieces = []; B.L.gems = []; B.L.deco = []; B.L.sign = null; B.changed(); }); });
@@ -550,7 +551,7 @@
       if (cur !== 'build') return;
       if (builder) builder.destroy();
       builder = new RS.Builder(cv, { clan: S.clan, layout: S.layout, stable: S.stable, name: S.name, getName: function () { return S.name; }, budget: RS.buildBudget(S, maxWorld()), onChange: function () { if (builder && builder.tool !== buildUI.last) buildUI(); else updB(); } });
-      builder.blue = !!S.blueprint;
+      builder.blue = !!S.blueprint; builder.sea = S.buildSea !== false;
       buildUI();
     });
   };
