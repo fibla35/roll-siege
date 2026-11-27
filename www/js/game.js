@@ -53,6 +53,21 @@
     ctx.restore();
   };
 
+  // cartel con el nombre: el texto se ajusta a la tabla de cada clan
+  RS.drawSign = function (ctx, clan, name, x, yBottom, s, dpr) {
+    var C = RS.CLANS[clan]; if (!C) return;
+    var sh = 'deco_' + clan, w = 3.2 * s, h = w / RS.spAspect(sh, C.sign), B = C.signBox || [0.5, 0.6, 0.7, 0.4, '#fff4d6'];
+    var top = yBottom - h; RS.drawSp(ctx, sh, C.sign, x, top + h / 2, w, h);
+    var maxW = w * B[2], fs = h * B[3] * 0.8;
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = Math.round(fs) + 'px Lilita, sans-serif';
+    var tw = ctx.measureText(name).width; if (tw > maxW) { fs *= maxW / tw; ctx.font = Math.round(fs) + 'px Lilita, sans-serif'; }
+    var light = B[4] !== '#4a2a10';
+    ctx.lineWidth = Math.max(2, fs * 0.16); ctx.strokeStyle = light ? '#3a1e0a' : 'rgba(255,240,210,0.8)'; ctx.fillStyle = B[4];
+    ctx.strokeText(name, x + w * (B[0] - 0.5), top + h * B[1]); ctx.fillText(name, x + w * (B[0] - 0.5), top + h * B[1]);
+    ctx.restore();
+  };
+
   function Game(canvas, level, opts) {
     this.cv = canvas; this.ctx = canvas.getContext('2d'); this.level = level; this.o = opts || {};
     this.style = this.o.style || 'bandido'; this.clan = this.o.clan || 'japon'; this.bg = this.o.bg || 'w1';
@@ -63,7 +78,9 @@
     this.aim = null; this.power = 0; this.angle = 0.6; this.recoil = 0; this.fireAnim = 0; this.flightT = 0; this.settleT = 0;
     this.cannonX = 0; this.clouds = []; this.t = 0; this.paused = false; this.ended = false;
     for (var i = 0; i < 6; i++) this.clouds.push({ i: i % 8, x: Math.random() * 60 - 10, y: 9 + Math.random() * 6, v: 0.2 + Math.random() * 0.4, s: 2 + Math.random() * 2 });
-    this.resize(); this.camHome(true); this.intro = 1.6; this.cam.x = this.camMaxX(); this.camT.x = this.cam.x;
+    this.uz = 1; this.ptrs = {};
+    var top = 3; (level.pieces || []).forEach(function (p) { var a = RS.pieceAABB(p); if (a.y1 > top) top = a.y1; }); this.topY = top;
+    this.resize(); this.camHome(true); this.intro = 0;
     this.bind(); this.last = performance.now(); this.acc = 0;
     var self = this; this.raf = requestAnimationFrame(function f(t) { if (self.dead) return; self.frame(t); self.raf = requestAnimationFrame(f); });
   }
@@ -103,13 +120,18 @@
     var self = this;
     this._down = function (e) { self.onDown(e); }; this._move = function (e) { self.onMove(e); }; this._up = function (e) { self.onUp(e); };
     this._rs = function () { self.resize(); self.camHome(false); };
+    this._wh = function (e) { e.preventDefault(); self.setZoom(self.uz * (e.deltaY < 0 ? 1.12 : 1 / 1.12)); };
+    this.cv.addEventListener('wheel', this._wh, { passive: false }); addEventListener('pointercancel', this._up);
     this.cv.addEventListener('pointerdown', this._down); addEventListener('pointermove', this._move); addEventListener('pointerup', this._up);
     addEventListener('resize', this._rs);
   };
   Game.prototype.unbind = function () {
-    this.cv.removeEventListener('pointerdown', this._down); removeEventListener('pointermove', this._move); removeEventListener('pointerup', this._up); removeEventListener('resize', this._rs);
+    this.cv.removeEventListener('pointerdown', this._down); removeEventListener('pointermove', this._move); removeEventListener('pointerup', this._up); removeEventListener('resize', this._rs); this.cv.removeEventListener('wheel', this._wh); removeEventListener('pointercancel', this._up);
   };
   Game.prototype.onDown = function (e) {
+    this.ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var ids = Object.keys(this.ptrs);
+    if (ids.length === 2) { this.aim = null; this.power = 0; this.pan = null; this.pinch = this.pinchD(); this.pinchZ = this.uz; return; }
     if (this.paused || this.ended) return;
     var x = (e.clientX - RS.stage.x) * this.dpr, y = (e.clientY - RS.stage.y) * this.dpr;
     if (this.state === 'aim' && this.intro > 0) { this.intro = 0; }
@@ -120,7 +142,11 @@
       if (b && !b.used) { var k = this.phys.ability(b); if (k) this.abilityFx(k, b); }
     }
   };
+  Game.prototype.pinchD = function () { var self = this, p = Object.keys(this.ptrs).map(function (k) { return self.ptrs[k]; }); return Math.max(20, Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y)); };
+  Game.prototype.setZoom = function (z) { this.uz = Math.max(1, Math.min(2.6, z)); this.camT.s = this.baseScale(); if (this.uz > 1.02) this.view = 3; };
   Game.prototype.onMove = function (e) {
+    if (this.ptrs[e.pointerId]) { this.ptrs[e.pointerId].x = e.clientX; this.ptrs[e.pointerId].y = e.clientY; }
+    if (this.pinch && Object.keys(this.ptrs).length === 2) { this.setZoom(this.pinchZ * this.pinchD() / this.pinch); return; }
     if (this.pan) { this.pan.d = (this.pan.x0 - (e.clientX - RS.stage.x) * this.dpr) / this.cam.s; this.view = 2.5; return; }
     if (!this.aim) return;
     this.aim.cx = (e.clientX - RS.stage.x) * this.dpr; this.aim.cy = (e.clientY - RS.stage.y) * this.dpr;
@@ -133,7 +159,9 @@
     if (p > this.power + 0.04 && this.t - (this.pourT || 0) > 0.18) { RS.Audio.sfx('pour', 0.25 + p * 0.3); this.pourT = this.t; }
     this.power = p;
   };
-  Game.prototype.onUp = function () {
+  Game.prototype.onUp = function (e) {
+    if (e && this.ptrs) delete this.ptrs[e.pointerId];
+    if (this.pinch) { if (!Object.keys(this.ptrs).length) this.pinch = null; return; }
     if (this.pan) { this.pan = null; this.view = 2.5; return; }
     if (!this.aim) return;
     var a = this.aim; this.aim = null;
@@ -194,7 +222,7 @@
     if (this.state === 'flight') {
       this.flightT += dt;
       var b = P.activeBall();
-      if (b) { var bp = b.body.getPosition(); this.camT = { x: Math.min(this.camMaxX(), Math.max(this.camHomeX(), bp.x + 2)), y: 0, s: this.baseScale(), lift: Math.max(0, (bp.y - 8) * this.baseScale()) }; }
+      if (b) { var bp = b.body.getPosition(); this.camT = { x: Math.min(this.camMaxX(), Math.max(this.camHomeX(), bp.x + 2)), y: 0, s: this.baseScale(), lift: Math.max(0, (bp.y - this.viewTop()) * this.cam.s) }; }
       var endX = (this.level.end || 30) + 4; var alive = P.balls.filter(function (u) { var q = u.body.getPosition(); return u.rest < 1.0 && q.x < endX && q.x > -12; });
       if (!P.balls.length || !alive.length || this.flightT > 9) {
         P.balls.forEach(function (u) { var q = u.body.getPosition(); self.dust(q.x, q.y, 1.4); u.dead = true; P.dead.push(u.body); });
@@ -213,7 +241,10 @@
     c.x += (T.x - c.x) * k; c.s += (T.s - c.s) * k; c.lift = (c.lift || 0) + ((T.lift || 0) - (c.lift || 0)) * k;
     if (this.o.onTick) this.o.onTick();
   };
-  Game.prototype.baseScale = function () { var span = (this.level.end || 30) + 3 - (this.cannonX - 3.5); return Math.max(this.H / 12.5, Math.min(this.W / span, this.H / 9)); };
+  // zoom base: que quepan a la vez el cañón y toda la fortaleza; el jugador puede acercar con pellizco o rueda
+  Game.prototype.fitScale = function () { var span = (this.level.end || 30) + 2.5 - (this.cannonX - 3.5); return Math.min(this.W / span, this.H * 0.7 / (this.topY + 1.5), this.H / 8); };
+  Game.prototype.baseScale = function () { return this.fitScale() * (this.uz || 1); };
+  Game.prototype.viewTop = function () { return this.H * 0.86 / this.cam.s - 1.8; };
   Game.prototype.camHomeX = function () { return this.cannonX - 3.5 + this.W / 2 / this.cam.s; };
 
   Game.prototype.afterShot = function () {
@@ -293,12 +324,7 @@
     // adornos y cartel (fortalezas de jugador)
     var L = this.level;
     (L.deco || []).forEach(function (d) { var sh = 'deco_' + self.style, a = RS.spAspect(sh, d.d), w = d.w * s, h = w / a; RS.drawSp(ctx, sh, d.d, self.sx(d.x), self.sy(d.y) - h / 2, w, h); });
-    if (L.sign && RS.CLANS[this.style]) {
-      var sg = L.sign, shs = 'deco_' + this.style, si = RS.CLANS[this.style].sign, sw = 3.2 * s, shh = sw / RS.spAspect(shs, si);
-      RS.drawSp(ctx, shs, si, this.sx(sg.x), this.sy(sg.y) - shh / 2, sw, shh);
-      ctx.save(); ctx.font = Math.round(shh * 0.26) + 'px Lilita, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff4d6'; ctx.strokeStyle = '#3a1e0a'; ctx.lineWidth = 3 * this.dpr;
-      ctx.strokeText(sg.name, this.sx(sg.x), this.sy(sg.y) - shh * 0.5); ctx.fillText(sg.name, this.sx(sg.x), this.sy(sg.y) - shh * 0.5); ctx.restore();
-    }
+    if (L.sign && RS.CLANS[this.style]) RS.drawSign(ctx, this.style, L.sign.name, this.sx(L.sign.x), this.sy(L.sign.y), s, this.dpr);
     // bloques
     this.phys.blocks.forEach(function (u) {
       if (u.dead) return; var b = u.body, p = b.getPosition();

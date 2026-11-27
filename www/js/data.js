@@ -70,9 +70,9 @@ var RS = typeof RS !== 'undefined' ? RS : {};
   RS.LEVELS_PER_WORLD = 20;
 
   RS.CLANS = {
-    japon: { id: 'japon', name: 'Clan del Sol Naciente', short: 'Sol Naciente', desc: 'Castillos japoneses de madera lacada, piedra y oro.', music: 'RSM11', sign: 16, color: '#c0392b' },
-    oeste: { id: 'oeste', name: 'Clan de la Frontera', short: 'La Frontera', desc: 'Fuertes del Lejano Oeste: troncos, arenisca y chapa.', music: 'RSM12', sign: 18, color: '#b9772f' },
-    azteca: { id: 'azteca', name: 'Clan del Sol de Jade', short: 'Sol de Jade', desc: 'Templos aztecas de piedra tallada, jade y oro.', music: 'RSM13', sign: 18, color: '#1f9e7a' },
+    japon: { id: 'japon', name: 'Clan del Sol Naciente', short: 'Sol Naciente', desc: 'Castillos japoneses de madera lacada, piedra y oro.', music: 'RSM11', sign: 16, signBox: [0.5, 0.6, 0.72, 0.42, '#fff4d6'], color: '#c0392b' },
+    oeste: { id: 'oeste', name: 'Clan de la Frontera', short: 'La Frontera', desc: 'Fuertes del Lejano Oeste: troncos, arenisca y chapa.', music: 'RSM12', sign: 18, signBox: [0.5, 0.7, 0.72, 0.4, '#fff4d6'], color: '#b9772f' },
+    azteca: { id: 'azteca', name: 'Clan del Sol de Jade', short: 'Sol de Jade', desc: 'Templos aztecas de piedra tallada, jade y oro.', music: 'RSM13', sign: 18, signBox: [0.5, 0.55, 0.62, 0.45, '#4a2a10'], color: '#1f9e7a' },
   };
 
   RS.PHYS = { gravity: -10, ballR: 0.45, ballDens: 3.2, vMax: 23, ground: 0 };

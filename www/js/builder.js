@@ -229,7 +229,7 @@
     } else if (this.tool === 'deco') {
       this.snap(); this.L.deco.push({ d: this.decoIdx, x: Math.round(x * 2) / 2, y: Math.max(0, Math.round(y * 2) / 2 - 0.5), w: 1.6 }); RS.Audio.sfx('place', 0.5); this.changed(false);
     } else if (this.tool === 'sign') {
-      this.snap(); this.L.sign = { x: Math.round(x * 2) / 2, y: Math.max(0, Math.round(y * 2) / 2 - 0.5), name: (this.L.sign && this.L.sign.name) || this.o.name || 'Mi fortaleza' };
+      var sx0 = Math.round(x * 2) / 2; this.snap(); this.L.sign = { x: sx0, y: this.dropY(sx0 - 1.2, sx0 + 1.2, y - 0.5, 0), name: (this.L.sign && this.L.sign.name) || this.o.name || 'Mi fortaleza' };
       RS.Audio.sfx('place', 0.5); this.changed(false);
     }
   };
@@ -328,13 +328,7 @@
       this.L.gems.forEach(function (g) { RS.drawSp(ctx, 'items', 6 + g.c, self.sx(g.x), self.sy(g.y), 0.75 * s, 0.75 * s); });
     }
     // cartel con el nombre
-    if (this.L.sign) {
-      var sg = this.L.sign, sh2 = 'deco_' + this.clan, idx = RS.CLANS[this.clan].sign, w = 3.2 * s, h = w / RS.spAspect(sh2, idx);
-      RS.drawSp(ctx, sh2, idx, this.sx(sg.x), this.sy(sg.y) - h / 2, w, h);
-      ctx.save(); ctx.font = Math.round(h * 0.26) + 'px Lilita, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#fff4d6'; ctx.strokeStyle = '#3a1e0a'; ctx.lineWidth = 4 * this.dpr;
-      ctx.strokeText(sg.name, this.sx(sg.x), this.sy(sg.y) - h * 0.5); ctx.fillText(sg.name, this.sx(sg.x), this.sy(sg.y) - h * 0.5); ctx.restore();
-    }
+    if (this.L.sign) RS.drawSign(ctx, this.clan, this.L.sign.name, this.sx(this.L.sign.x), this.sy(this.L.sign.y), s, this.dpr);
     // fantasma
     var G = this.ghost;
     if (G && !this.sim) {

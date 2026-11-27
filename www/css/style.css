@@ -162,3 +162,5 @@ input, select { font-family: Nunito; font-weight: 800; font-size: calc(3 * var(-
 .tb.mat { font-size: calc(1.9 * var(--vh)); }
 .btop { padding: calc(1 * var(--vh)) calc(1.5 * var(--vw)); }
 .btop .btn.sm { font-size: calc(2.6 * var(--vh)); height: calc(6.6 * var(--vh)); }
+
+.q .nm { display: none; } .q.sel .nm { display: block; left: -3vh; right: -3vh; font-size: calc(2.2 * var(--vh)); white-space: nowrap; font-weight: 900; }
