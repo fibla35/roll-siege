@@ -96,12 +96,16 @@
     $('home').style.backgroundImage = 'url(img/bg_' + S.clan + '.webp)';
     $('h_coins').textContent = S.coins; $('h_troph').textContent = S.trophies; $('h_stars').textContent = totalStars();
     $('h_fname').textContent = S.name; RS.Extras.daily(); RS.Extras.badges();
+    var liveEv = Object.keys(RS.EVENTS).filter(function (e) { return RS.eventActive(e); })[0];
+    $('hb_evi').textContent = liveEv ? RS.EVENTS[liveEv].icon : '🎉'; $('hb_ev').style.display = liveEv && !S.stars[evKey(liveEv, 10)] ? 'block' : 'none';
     if (RS.Extras.wheelDue()) setTimeout(function () { if (cur === 'home' && !document.querySelector('.modal.show')) RS.Extras.wheel(); }, 700);
   };
 
   // ---------- mapa ----------
   var MAPS = { 1: { img: 'map.webp', pos: [[24.4, 34], [39.4, 37.5], [53.3, 36], [66.7, 33], [79.4, 41], [91, 29]] },
-    2: { img: 'map2.webp', pos: [[14, 53], [26, 36], [41.7, 42], [60, 44.4], [73.6, 34.7], [87.9, 24.4]] } };
+    2: { img: 'map2.webp', pos: [[14, 53], [26, 36], [41.7, 42], [60, 44.4], [73.6, 34.7], [87.9, 24.4]] },
+    3: { img: 'map3.webp', pos: [[14.5, 31], [31.5, 16], [44.5, 56], [57.5, 19], [75, 52], [88.5, 25]] } };
+  var MAP_NAMES = { 1: 'Primer continente', 2: 'Nuevo continente', 3: 'Mares Bandidos' };
   var mapPage = 1;
   SCREENS.map = function () {
     RS.Audio.play('RSM19');
@@ -117,10 +121,13 @@
       b.onclick = function () { if (!open) return toast('Vence al jefe del mundo ' + (w.id - 1)); RS.Audio.sfx('click'); curWorld = w.id; show('levels'); };
       box.appendChild(b);
     });
-    var arrow = document.createElement('button'); arrow.className = 'maparrow ' + (mapPage === 1 ? 'right' : 'left');
-    arrow.innerHTML = mapPage === 1 ? '<span>Nuevo continente</span> ❯' : '❮ <span>Primer continente</span>';
-    arrow.onclick = function () { mapPage = mapPage === 1 ? 2 : 1; RS.Audio.sfx('whoosh'); SCREENS.map(); };
-    box.appendChild(arrow);
+    [[-1, 'left'], [1, 'right']].forEach(function (d) {
+      var to = mapPage + d[0]; if (!MAPS[to]) return;
+      var arrow = document.createElement('button'); arrow.className = 'maparrow ' + d[1];
+      arrow.innerHTML = d[0] > 0 ? '<span>' + MAP_NAMES[to] + '</span> ❯' : '❮ <span>' + MAP_NAMES[to] + '</span>';
+      arrow.onclick = function () { mapPage = to; RS.Audio.sfx('whoosh'); SCREENS.map(); };
+      box.appendChild(arrow);
+    });
   };
 
   // ---------- niveles ----------
@@ -186,6 +193,45 @@
     if (!skipPrep && (w > 1 || n >= 4)) return RS.Extras.prep('Nivel ' + w + '-' + n + (n === 20 ? ' · JEFE' : ''), function (b) { startLevel(w, n, true, b); });
     startGame(lvl, { kind: 'camp', boost: boost || {}, w: w, n: n, style: 'bandido', bg: W.bg, music: levelMusic(w, n), label: w + '-' + n + (n === 20 ? ' JEFE' : '') });
   }
+  // ---------- eventos de temporada ----------
+  var EV_GIFT = { 2: 0, 4: 1, 5: 2, 7: 3, 9: 4, 10: 5 }; // nivel -> skin del evento que regala al superarlo
+  function evOpen(ev) { return S.unlockAll || RS.eventActive(ev); }
+  function evKey(ev, n) { return 'ev:' + ev + '-' + n; }
+  RS.skinPreview = function (cv, k, ball) {
+    var x = cv.getContext('2d'), sh = RS.SKIN_SHEETS[Math.floor(k / 6)], idx = (k % 6) * 2 + (ball ? 1 : 0);
+    cv.width = 120; cv.height = 120; if (!RS.atlas[sh]) return;
+    var a = RS.spAspect(sh, idx), w = a > 1 ? 104 : 104 * a, h = w / a; RS.drawSp(x, sh, idx, 60, 60, w, h);
+  };
+  SCREENS.events = function () {
+    RS.Audio.play('RSM16');
+    var box = $('evlist'); box.innerHTML = '';
+    Object.keys(RS.EVENTS).forEach(function (ev) {
+      var E = RS.EVENTS[ev], open = evOpen(ev), live = RS.eventActive(ev), d = document.createElement('div');
+      d.className = 'evcard' + (open ? '' : ' closed'); d.style.backgroundImage = 'url(img/bg_' + E.bg + '.webp)';
+      var m = ['', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      var when = E.from[1] + ' ' + m[E.from[0]] + ' – ' + E.to[1] + ' ' + m[E.to[0]];
+      d.innerHTML = '<h3>' + E.icon + ' ' + E.name + '</h3><div class="evd">' + (live ? '<b>¡En marcha!</b> · ' : open ? '<b>Modo pruebas</b> · ' : 'Próximamente · ') + when + ' · 10 niveles · gana 6 skins de Bolo</div>';
+      var g = document.createElement('div'); g.className = 'evgrid';
+      for (var n = 1; n <= RS.EVENT_LEVELS; n++) (function (n) {
+        var lo = open && (n === 1 || S.unlockAll || !!S.stars[evKey(ev, n - 1)]), st = S.stars[evKey(ev, n)] || 0, b = document.createElement('button');
+        b.className = 'lv' + (n === 10 ? ' boss' : '') + (lo ? '' : ' locked') + (EV_GIFT[n] != null && S.skins.indexOf(E.skins[EV_GIFT[n]]) < 0 ? ' gift' : '');
+        var stars = ''; for (var i = 0; i < 3; i++) stars += '<img src="img/ui/star' + (i < st ? 1 : 0) + '.webp">';
+        b.innerHTML = n + (lo ? '<div class="st">' + stars + '</div>' : '');
+        b.onclick = function () { if (!open) return toast('Este evento abre el ' + when.split(' – ')[0]); if (!lo) return toast('Supera el nivel anterior'); RS.Audio.sfx('click'); startEvent(ev, n); };
+        g.appendChild(b);
+      })(n);
+      d.appendChild(g);
+      var sk = document.createElement('div'); sk.className = 'evskins';
+      E.skins.forEach(function (k) { var c = document.createElement('canvas'); if (S.skins.indexOf(k) < 0) c.className = 'no'; c.title = RS.Extras.SKINS[k]; RS.skinPreview(c, k); sk.appendChild(c); });
+      d.appendChild(sk); box.appendChild(d);
+    });
+  };
+  function startEvent(ev, n, skipPrep, boost) {
+    var E = RS.EVENTS[ev];
+    if (!skipPrep) return RS.Extras.prep(E.name + ' · ' + n, function (b) { startEvent(ev, n, true, b); });
+    startGame(RS.makeEventLevel(ev, n), { kind: 'event', ev: ev, n: n, boost: boost || {}, style: 'bandido', bg: E.bg, music: E.music, label: E.icon + ' ' + n });
+  }
+
   // al elegir armadillo (o al tocarle el turno) se explica qué hace
   var lastTip = null;
   function armTip(force) {
@@ -229,8 +275,8 @@
   $('p_mus').onclick = function () { S.vol.music = S.vol.music ? 0 : 0.6; RS.Audio.setVol('music', S.vol.music); persist(); syncAudioBtns(); };
   $('p_next').onclick = function () { RS.Audio.init(); nextTrack(); };
   $('p_snd').onclick = function () { S.vol.sfx = S.vol.sfx ? 0 : 0.8; RS.Audio.setVol('sfx', S.vol.sfx); persist(); syncAudioBtns(); };
-  function retry() { var c = ctxGame; if (c.defense || c.kind === 'camp') return startLevel(c.w, c.n); if (c.kind === 'league') return startLeague(); startGame(c.kind === 'camp' ? RS.makeLevel(c.w, c.n) : c.kind === 'league' ? rivalLevel() : ownLevel(), c); }
-  function back() { var k = ctxGame && ctxGame.kind; show(k === 'camp' ? 'levels' : k === 'league' ? 'league' : 'build'); }
+  function retry() { var c = ctxGame; if (c.defense || c.kind === 'camp') return startLevel(c.w, c.n); if (c.kind === 'event') return startEvent(c.ev, c.n, true, {}); if (c.kind === 'league') return startLeague(); startGame(c.kind === 'camp' ? RS.makeLevel(c.w, c.n) : c.kind === 'league' ? rivalLevel() : ownLevel(), c); }
+  function back() { var k = ctxGame && ctxGame.kind; show(k === 'camp' ? 'levels' : k === 'event' ? 'events' : k === 'league' ? 'league' : 'build'); }
 
   function onEnd(r) {
     var c = ctxGame, txt = ''; $('hint').style.opacity = 0; $('armtip').classList.remove('show');
@@ -255,6 +301,14 @@
         if (c.n < 20 || c.w < RS.WORLDS.length) $('r_next').style.display = '';
         if (c.n === 20 && c.w < RS.WORLDS.length) txt += '<br>¡Mundo ' + (c.w + 1) + ' desbloqueado!';
       } else txt += '<br>Te quedaste sin armadillos. ¡Prueba otro orden o rompe una jaula para tener uno más!';
+    } else if (c.kind === 'event') {
+      var ek = evKey(c.ev, c.n), E = RS.EVENTS[c.ev];
+      if (r.win) {
+        var pv = S.stars[ek] || 0, ec = 40 + (r.stars - pv > 0 ? (r.stars - pv) * 20 : 0) + (c.n === 10 && !pv ? 300 : 0);
+        S.stars[ek] = Math.max(pv, r.stars); S.coins += ec; txt += '<br>+' + ec + ' monedas';
+        var gi = EV_GIFT[c.n]; if (gi != null && S.skins.indexOf(E.skins[gi]) < 0) { S.skins.push(E.skins[gi]); txt += '<br>✨ ¡Skin nueva para Bolo: <b>' + RS.Extras.SKINS[E.skins[gi]] + '</b>!'; }
+        if (c.n < RS.EVENT_LEVELS) $('r_next').style.display = '';
+      } else txt += '<br>¡Casi! Prueba otro orden de armadillos.';
     } else if (c.kind === 'league') {
       var d = r.win ? 25 + r.stars * 5 : -15;
       S.trophies = Math.max(0, S.trophies + d); txt += '<br>Trofeos ' + (d > 0 ? '+' : '') + d;
@@ -272,6 +326,7 @@
   $('r_next').onclick = function () {
     $('result').classList.remove('show'); var c = ctxGame;
     if (c.kind === 'camp') { var w = c.w, n = c.n + 1; if (n > 20) { w++; n = 1; } curWorld = w; startLevel(w, n); }
+    else if (c.kind === 'event') startEvent(c.ev, c.n + 1);
     else if (c.kind === 'league') startLeague();
   };
 
@@ -438,7 +493,7 @@
         if (!I.max) { var ub = document.createElement('button'); ub.className = 'btn sm ' + (I.can ? 'green' : 'blue'); ub.innerHTML = 'Mejorar <img src="img/ui/coin.webp">' + I.cost; ub.onclick = function () { RS.Extras.upgrade(i); SCREENS.arms(); }; d.appendChild(ub); }
         if (i === 0) {
           var sk = document.createElement('div'); sk.className = 'skins';
-          [-1].concat(S.skins.slice().sort()).forEach(function (k) { var b = document.createElement('button'); b.className = 'tb' + (S.skin === k ? ' sel' : ''); b.textContent = k < 0 ? 'Normal' : RS.Extras.SKINS[k]; b.onclick = function () { S.skin = k; persist(); RS.Audio.sfx('click'); SCREENS.arms(); }; sk.appendChild(b); });
+          [-1].concat(S.skins.slice().sort()).forEach(function (k) { var b = document.createElement('button'); b.className = 'tb' + (S.skin === k ? ' sel' : ''); if (k < 0) b.textContent = 'Normal'; else { var pc = document.createElement('canvas'); RS.skinPreview(pc, k); b.appendChild(pc); b.appendChild(document.createTextNode(RS.Extras.SKINS[k])); } b.onclick = function () { S.skin = k; persist(); RS.Audio.sfx('click'); SCREENS.arms(); }; sk.appendChild(b); });
           d.appendChild(sk);
         }
       }
@@ -497,5 +552,5 @@
     show('title');
     RS.loadBg(S.clan || 'w1');
   });
-  RS._dbg = { show: show, startLevel: startLevel, get game() { return game; }, get builder() { return builder; } };
+  RS._dbg = { show: show, startLevel: startLevel, startEvent: startEvent, get game() { return game; }, get builder() { return builder; } };
 })(RS);

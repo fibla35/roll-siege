@@ -20,7 +20,7 @@
 <div id="title" class="screen bgimg" style="background-image:url(img/title.webp)">
   <img src="img/ui/logo.webp" class="logo-big" alt="Roll Siege">
   <button class="btn green big" data-go="start">¡Jugar!</button>
-  <div class="ver">v0.4 prueba</div>
+  <div class="ver">v0.5 prueba</div>
 </div>
 
 <div id="clan" class="screen dim">
@@ -36,7 +36,7 @@
     <button class="ibtn" data-go="settings"><img src="img/ui/i_gear.webp"></button></div>
   <img src="img/ui/logo_s.webp" class="logo-s">
   <div class="homegrid">
-    <button class="card" data-go="map"><img src="img/ui/i_map.webp"><b>Campaña</b><span>12 mundos · 240 niveles</span></button>
+    <button class="card" data-go="map"><img src="img/ui/i_map.webp"><b>Campaña</b><span>18 mundos · 360 niveles</span></button>
     <button class="card" data-go="build"><img src="img/ui/i_build.webp"><b>Mi fortaleza</b><span id="h_fname">Construye y defiende</span></button>
     <button class="card" data-go="league"><img src="img/ui/i_attack.webp"><b>Liga</b><span>Asalta fortalezas rivales</span></button>
     <button class="card" data-go="arms"><img src="img/ui/i_chest.webp"><b>Armadillos</b><span>Tu colección</span></button>
@@ -45,7 +45,13 @@
     <button class="hbtn" data-go="shop"><img src="img/ui/i_shop.webp"><span>Tienda</span><i class="dot" id="hb_shop"></i></button>
     <button class="hbtn" data-go="missions"><img src="img/ui/i_trophy.webp"><span>Misiones</span><i class="dot" id="hb_miss"></i></button>
     <button class="hbtn" data-go="achievements"><img src="img/ui/star1.webp"><span>Logros</span><i class="dot" id="hb_ach"></i></button>
+    <button class="hbtn ev" data-go="events"><b class="evi" id="hb_evi">🎉</b><span>Eventos</span><i class="dot" id="hb_ev"></i></button>
   </div>
+</div>
+
+<div id="events" class="screen dim">
+  <div class="topbar"><button class="back" data-go="home" aria-label="Atrás"><span>❮</span></button><h2>Eventos de temporada</h2></div>
+  <div id="evlist"></div>
 </div>
 
 <div id="shop" class="screen dim">

@@ -71,7 +71,10 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     return 6;
   };
 
+  // variantes revisadas con tests/find_variant.js (la generada por defecto no era ganable)
+  RS.LEVEL_FIX = { '4-5': 1, '4-16': 1, '7-2': 1, '9-6': 1, '9-20': 1, '12-10': 1, '12-17': 1, '12-19': 1, '14-6': 1, '14-12': 1, '15-11': 1, '16-10': 1, '18-9': 2, '18-20': 1 };
   RS.makeLevel = function (w, n, variant) {
+    if (variant === undefined && RS.LEVEL_FIX[w + '-' + n]) variant = RS.LEVEL_FIX[w + '-' + n];
     var W = RS.WORLDS[w - 1], R = rng(w * 1000 + n * 37 + (variant || 0) * 7919);
     var strong = W.mats.filter(function (m) { return RS.MATS[m].hp >= 130; });
     var B = new Builder(R, W.mats, strong);
@@ -108,7 +111,7 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     // ---- mapaches: ocupan los huecos donde iban las gemas; quedan 1-2 gemas de premio ----
     var R3 = rng(w * 4211 + n * 97 + (variant || 0) * 13), spots = B.gems.slice(), racs = [], cages = [];
     for (var si = spots.length - 1; si > 0; si--) { var sj = Math.floor(R3() * (si + 1)), tmp = spots[si]; spots[si] = spots[sj]; spots[sj] = tmp; }
-    var pool = RS.RACS.map(function (r, i) { return i; }).filter(function (i) { var r = RS.RACS[i]; return r.world <= w && (r.world > 1 || true); });
+    var pool = RS.RACS.map(function (r, i) { return i; }).filter(function (i) { var r = RS.RACS[i]; return r.world <= w && (w < 13 || r.sea || (r.id === 'pirata' && n % 3 === 0)); });
     var nRac = Math.min(spots.length, Math.max(1, Math.min(6, 1 + Math.floor(n / 4) + (w >= 4 ? 1 : 0))));
     var cageAt = (n % 4 === 3 && spots.length > nRac) ? 1 : 0;
     function spaceAbove(px, fy) {
@@ -132,7 +135,7 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
       }
     });
     B.gems = B.gems.filter(function (g) { return !g.used; });
-    if (boss) racs.push({ x: x + 0.2, y: 0, t: 0, boss: true, w: w, name: RS.BOSSES[(w - 1) % RS.BOSSES.length].name });
+    if (boss) racs.push({ x: x + 0.2, y: 0, t: 0, boss: true, w: w, name: RS.BOSSES[RS.bossIdx(w)].name });
     if (!racs.length && B.gems.length) { var g0 = B.gems.shift(); racs.push({ x: g0.x, y: g0.y - 0.33, t: 0 }); }
     // demasiadas gemas: como mucho 2 de premio (3 en el jefe)
     var maxG = boss ? 3 : 2;
@@ -140,32 +143,51 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     B.gems.forEach(function (g, i) { g.c = (W.gemFrom + i) % 6; });
     // armadillos disponibles en este mundo
     var avail = RS.ARMS.map(function (a, i) { return i; }).filter(function (i) { return RS.ARMS[i].world <= w && RS.ARMS[i].rare < 3; });
-    var count = Math.max(3, Math.min(6, 2 + mods + (boss ? 2 : 0)));
+    var count = Math.max(3, Math.min(6, 2 + mods + (boss ? 2 : 0))) + (boss && w >= 9 ? 1 : 0);
     var arms = [0];
     var pool = avail.slice(1); while (arms.length < count) { if (!pool.length) pool = avail.slice(); arms.push(pool.splice(Math.floor(R() * pool.length), 1)[0]); }
     var span = x - 17;
     var three = Math.round(span * 120 + racs.length * 2000 + (boss ? 8000 : 0) + B.gems.length * 1000);
     var wind = RS.WIND[w] ? RS.WIND[w] * (n % 2 ? 1 : -1) * (0.6 + R3() * 0.6) : 0;
     // clima: cada mundo tiene su ambiente y algunos niveles llueve suave
-    var WX = { 1: 'leaves', 2: 'dust', 3: 'snow', 4: 'embers', 5: 'rain', 6: 'neon', 7: 'fireflies', 8: 'petals', 9: 'sparkles', 10: 'leaves', 11: 'confetti', 12: 'gold' };
+    var WX = { 1: 'leaves', 2: 'dust', 3: 'snow', 4: 'embers', 5: 'rain', 6: 'neon', 7: 'fireflies', 8: 'petals', 9: 'sparkles', 10: 'leaves', 11: 'confetti', 12: 'gold', 13: 'sparkles', 14: 'leaves', 15: 'fireflies', 16: 'rain', 17: 'sparkles', 18: 'embers' };
     var weather = WX[w] || null;
-    if ([1, 2, 5, 7, 10].indexOf(w) >= 0 && n % 4 === 2) weather = 'rain';
+    if ([1, 2, 5, 7, 10, 13, 14].indexOf(w) >= 0 && n % 4 === 2) weather = 'rain';
+    if (w === 16 && n % 3 === 0) weather = 'storm';
     if (w === 3 && n % 5 === 4) weather = 'blizzard';
-    var tod = [6, 7, 11].indexOf(w) >= 0 ? null : n % 6 === 3 ? 'dusk' : n % 6 === 5 ? 'night' : null;
+    var tod = w === 15 ? 'night' : [6, 7, 11].indexOf(w) >= 0 ? null : n % 6 === 3 ? 'dusk' : n % 6 === 5 ? 'night' : null;
     if (weather === 'storm' && !tod) tod = 'dusk';
-    if (boss) weather = w === 3 ? 'blizzard' : w === 4 || w === 9 || w === 12 ? WX[w] : 'storm';
+    if (boss) weather = w === 3 ? 'blizzard' : w === 4 || w === 9 || w === 12 || w === 15 || w === 17 || w === 18 ? WX[w] : 'storm';
     return { w: w, n: n, boss: boss, weather: weather, tod: tod, pieces: B.pieces, gems: B.gems, racs: racs, wind: Math.round(wind * 10) / 10, arms: arms, end: boss ? x + 1.5 : x, stars: [1, three * 0.5, three * 0.8] };
+  };
+
+  // nivel de evento: fortaleza de dificultad media con los mapaches y el decorado del evento
+  RS.makeEventLevel = function (ev, n) {
+    var E = RS.EVENTS[ev], L = RS.makeLevel(E.baseW, Math.min(19, n * 2 - 1), 40 + n);
+    var pool = RS.RACS.map(function (r, i) { return i; }).filter(function (i) { return RS.RACS[i].event === ev; });
+    L.racs.forEach(function (r, i) {
+      if (r.boss) { r.boss = false; r.t = pool[i % pool.length]; return; }
+      var T0 = RS.RACS[r.t], fit = pool.filter(function (k) { return RS.RACS[k].h <= T0.h + 0.03 && RS.RACS[k].w <= T0.w + 0.03; });
+      r.t = fit.length ? fit[(i + n) % fit.length] : pool[0];
+    });
+    L.arms = L.arms.concat([L.arms[1] || 0]); // un armadillo extra: los eventos son para disfrutar
+    L.ev = ev; L.n = n; L.boss = false; L.weather = E.weather; L.tod = n % 2 ? E.tod : null; L.wind = 0;
+    L.decoSheet = E.deco; L.deco = [];
+    var cnt = RS.atlas && RS.atlas[E.deco] ? RS.atlas[E.deco].length : 12;
+    for (var k = 0; k < 3; k++) L.deco.push({ d: (n * 5 + k * 7) % cnt, x: 3 + k * 4.2, y: 0, w: 1.5 });
+    L.deco.push({ d: (n * 3 + 4) % cnt, x: L.end + 2.2, y: 0, w: 1.6 });
+    return L;
   };
 
   // fortaleza rival para la Liga (estilo de clan aleatorio)
   RS.makeRival = function (seed, trophies) {
     var R = rng(seed * 101 + 5);
-    var tier = Math.min(12, 1 + Math.floor((trophies || 0) / 120));
+    var tier = Math.min(18, 1 + Math.floor((trophies || 0) / 120));
     var lvl = RS.makeLevel(tier, 6 + Math.floor(R() * 14), seed);
     var clans = Object.keys(RS.CLANS);
     lvl.clan = clans[Math.floor(R() * clans.length)];
-    var ct = RS.RACS.findIndex(function (r) { return r.clan === lvl.clan; });
-    lvl.racs.forEach(function (r, i) { if (!r.boss && i % 2 === 0 && RS.RACS[ct].h <= RS.RACS[r.t].h + 0.03 && RS.RACS[ct].w <= RS.RACS[r.t].w + 0.03) r.t = ct; });
+    var cr = RS.CLANS[lvl.clan].rac, ct = RS.RACS.findIndex(function (r) { return cr ? r.id === cr : r.clan === lvl.clan; });
+    if (ct >= 0) lvl.racs.forEach(function (r, i) { if (!r.boss && i % 2 === 0 && RS.RACS[ct].h <= RS.RACS[r.t].h + 0.03 && RS.RACS[ct].w <= RS.RACS[r.t].w + 0.03) r.t = ct; });
     lvl.name = RS.RIVAL_NAMES[Math.floor(R() * RS.RIVAL_NAMES.length)];
     lvl.trophies = Math.max(0, (trophies || 0) + Math.floor(R() * 80 - 30));
     lvl.loot = 80 + Math.floor(R() * 120) + tier * 30;

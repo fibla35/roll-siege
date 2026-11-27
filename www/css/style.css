@@ -248,3 +248,22 @@ input, select { font-family: Nunito; font-weight: 800; font-size: calc(3 * var(-
 .tut.queue .tuttxt { top: calc(36 * var(--vh)); }
 .tut.pinch .tuthand { left: 55%; top: 45%; animation: tpinch 1.4s ease-in-out infinite; }
 @keyframes tpinch { 50% { transform: scale(1.35) rotate(-10deg); } }
+
+/* eventos */
+.hbtn .evi { font-size: calc(5 * var(--vh)); line-height: 1; font-weight: normal; }
+#evlist { display: flex; gap: calc(2 * var(--vw)); width: calc(94 * var(--vw)); margin-top: calc(2 * var(--vh)); }
+.evcard { flex: 1; position: relative; border: 3px solid #fff4d6; border-radius: calc(3 * var(--vh)); overflow: hidden; background: #1b1430 center/cover no-repeat; padding: calc(2 * var(--vh)) calc(1.5 * var(--vw)); color: #fff; box-shadow: 0 6px 0 rgba(0,0,0,.35); }
+.evcard::before { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(10,5,25,.25), rgba(10,5,25,.82)); }
+.evcard > * { position: relative; }
+.evcard h3 { margin: 0; font-family: Lilita, sans-serif; font-size: calc(5 * var(--vh)); text-shadow: 0 3px 0 #000; }
+.evcard .evd { font-size: calc(2.6 * var(--vh)); opacity: .95; margin: calc(.5 * var(--vh)) 0 calc(1.5 * var(--vh)); }
+.evcard .evd b { color: #ffd84a; }
+.evgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: calc(1 * var(--vw)); }
+.evgrid .lv { font-size: calc(4.2 * var(--vh)); }
+.evgrid .lv.gift::after { content: '🎁'; position: absolute; top: -8%; right: -6%; font-size: calc(2.8 * var(--vh)); }
+.evgrid .lv { position: relative; }
+.evskins { display: flex; gap: calc(.8 * var(--vw)); margin-top: calc(1.5 * var(--vh)); align-items: flex-end; }
+.evskins canvas { width: calc(9 * var(--vh)); height: calc(9 * var(--vh)); border-radius: calc(1.5 * var(--vh)); background: rgba(255,255,255,.12); }
+.evskins canvas.no { filter: grayscale(1) brightness(.45); }
+.evcard.closed .evgrid { opacity: .5; }
+.skins .tb canvas { width: calc(6 * var(--vh)); height: calc(6 * var(--vh)); display: block; margin: 0 auto; }

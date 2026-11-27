@@ -13,7 +13,13 @@
     { id: 2, name: 'Cofre de oro', price: 700, cards: 18, coins: [100, 250], skin: 0.3, img: 'chest2', open: 'chest2', rare: [40, 38, 17, 5] },
     { id: 3, name: 'Cofre legendario', price: 1600, cards: 35, coins: [250, 500], skin: 0.75, img: 'chest3', open: 'chest3', rare: [25, 35, 28, 12] },
   ];
-  E.SKINS = ['Samurái', 'Ninja', 'Sheriff', 'Forajido', 'Guerrero Águila', 'Guerrero Jaguar'];
+  E.SKINS = ['Samurái', 'Ninja', 'Sheriff', 'Forajido', 'Guerrero Águila', 'Guerrero Jaguar',
+    'Calabaza', 'Momia', 'Frankenstein', 'Diablillo', 'Fantasma', 'Vampiro',
+    'Papá Noel', 'Reno', 'Duende', 'Muñeco de nieve', 'Regalo', 'Rey de las Nieves',
+    'Robot', 'Mecha samurái', 'Cohete cromado', 'Imán de neón', 'Rayo androide', 'Titán tanque',
+    'Jugador de bolos', 'Baloncesto', 'Fútbol', 'Pesas', 'Natación', 'Atletismo',
+    'Guerrero griego', 'Dios del trueno', 'Gigante de escarcha', 'Demonio de fuego', 'Deidad estelar', 'Faraón dorado'];
+  E.EVENT_SKIN = function (k) { return k >= 6 && k < 18; };
   E.CARDS_NEED = [0, 0, 3, 6, 12, 24]; // cartas para pasar al nivel n
   E.COST_UP = [0, 0, 80, 200, 450, 900];
 
@@ -34,7 +40,7 @@
       while (r > 0 && !byR[r].length) r--; var pool = byR[r].length ? byR[r] : open; var a = pool[Math.floor(Math.random() * pool.length)];
       out.cards[a] = (out.cards[a] || 0) + 1;
     }
-    var free = E.SKINS.map(function (n, i) { return i; }).filter(function (i) { return s.skins.indexOf(i) < 0; });
+    var free = E.SKINS.map(function (n, i) { return i; }).filter(function (i) { return s.skins.indexOf(i) < 0 && !E.EVENT_SKIN(i); });
     if (free.length && Math.random() < c.skin) out.skin = free[Math.floor(Math.random() * free.length)];
     s.coins += out.coins; Object.keys(out.cards).forEach(function (a) { s.cards[a] = (s.cards[a] || 0) + out.cards[a]; });
     if (out.skin != null) s.skins.push(out.skin);

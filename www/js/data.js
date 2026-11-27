@@ -53,6 +53,20 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     { id: 'payaso', name: 'Payaso de feria', hp: 36, w: 0.7, h: 0.9, dens: 0.9, world: 11, col: '#e84393', hat: 'clown', act: 'pie', desc: 'Te tira una tarta a la pantalla.' },
     { id: 'aviador', name: 'Aviador', hp: 30, w: 0.7, h: 0.9, dens: 0.8, world: 8, col: '#b5651d', hat: 'pilot', fly: true, desc: 'Vuela con su hélice: cuesta acertarle.' },
     { id: 'guardia', name: 'Guardia real', hp: 110, w: 0.74, h: 1.0, dens: 1.4, world: 12, col: '#d4af37', hat: 'royal' },
+    // Mares Bandidos (rac7, rac8)
+    { id: 'grumete', name: 'Grumete', hp: 34, w: 0.7, h: 0.9, dens: 0.9, world: 13, sea: 1, col: '#c0392b', hat: 'band', act: 'repair', desc: 'Friega y repara la pieza más dañada.' },
+    { id: 'arponero', name: 'Arponero', hp: 40, w: 0.7, h: 0.92, dens: 1, world: 13, sea: 1, col: '#f1c40f', hat: 'hood', act: 'sling', desc: 'Te lanza un arpón: tu siguiente disparo sale con menos pólvora.' },
+    { id: 'artillero', name: 'Artillero', hp: 45, w: 0.72, h: 0.92, dens: 1.1, world: 14, sea: 1, col: '#b03a2e', hat: 'beanie', act: 'bomb', desc: 'Dispara su trabuco al cañón: tu siguiente disparo sale torcido.' },
+    { id: 'buzo', name: 'Buzo', hp: 90, w: 0.74, h: 0.95, dens: 1.5, world: 15, sea: 1, col: '#b8860b', hat: 'pot', act: 'ward', desc: 'Protege a otro mapache con una burbuja.' },
+    { id: 'loro', name: 'Pirata del loro', hp: 38, w: 0.7, h: 0.92, dens: 0.9, world: 16, sea: 1, col: '#111', hat: 'pirate', act: 'steal', desc: 'Su loro te roba 500 puntos en cada turno.' },
+    { id: 'contramaestre', name: 'Contramaestre', hp: 70, w: 0.8, h: 0.98, dens: 1.8, world: 17, sea: 1, col: '#e8e0c8', hat: 'captain', act: 'alarm', desc: 'Pita la alarma: los mapaches se ponen casco.' },
+    // eventos (rac9 Halloween, rac10 Navidad)
+    { id: 'fantasma', name: 'Mapache fantasma', hp: 30, w: 0.7, h: 0.9, dens: 0.8, world: 99, event: 'hal', col: '#eee', hat: 'none', act: 'ward', desc: 'Envuelve a otro mapache en una sábana mágica.' },
+    { id: 'vampiro', name: 'Mapache vampiro', hp: 45, w: 0.7, h: 0.92, dens: 1, world: 99, event: 'hal', col: '#6c1b2b', hat: 'none', act: 'steal', desc: 'Te chupa 500 puntos en cada turno.' },
+    { id: 'calabaza', name: 'Mapache calabaza', hp: 55, w: 0.72, h: 0.92, dens: 1.2, world: 99, event: 'hal', col: '#e67e22', hat: 'none', act: 'pie', desc: 'Te lanza caramelos pegajosos a la pantalla.' },
+    { id: 'elfo', name: 'Elfo bandido', hp: 34, w: 0.7, h: 0.9, dens: 0.9, world: 99, event: 'nav', col: '#27ae60', hat: 'none', act: 'repair', desc: 'Envuelve como regalo la pieza más dañada y la repara.' },
+    { id: 'santa', name: 'Santa Mapache', hp: 70, w: 0.76, h: 0.95, dens: 1.6, world: 99, event: 'nav', col: '#c0392b', hat: 'none', act: 'bomb', desc: 'Te lanza un regalo bomba: tu siguiente disparo sale torcido.' },
+    { id: 'nieve', name: 'Mapache de nieve', hp: 45, w: 0.7, h: 0.92, dens: 1, world: 99, event: 'nav', col: '#fff', hat: 'none', act: 'sling', desc: 'Te tira una bola de nieve: tu siguiente disparo sale con menos pólvora.' },
   ];
   RS.RAC_IDX = {}; RS.RACS.forEach(function (r, i) { RS.RAC_IDX[r.id] = i; });
   RS.BOSSES = [
@@ -60,8 +74,12 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     { name: 'Magma Mapachón', act: 'bomb' }, { name: 'Almirante Bigotes', act: 'bomb' }, { name: 'Barón Neón', act: 'wardAll' },
     { name: 'Bruja Ciénaga', act: 'wardAll' }, { name: 'Comandante Zepelín', act: 'bomb' }, { name: 'Capataz Cristal', act: 'repairAll' },
     { name: 'Granjero Cosecha', act: 'sling' }, { name: 'Maestro de Pista', act: 'pie' }, { name: 'Rey Mapache', act: 'repairAll' },
+    // Mares Bandidos: hojas boss5 (filas 0-2) y boss6 (filas 0-2)
+    { name: 'Lobo de Mar', act: 'bomb' }, { name: 'Reina Sirena', act: 'wardAll' }, { name: 'Rey del Kraken', act: 'repairAll' },
+    { name: 'Capitana Perla', act: 'sling' }, { name: 'Barbacalavera', act: 'bomb' }, { name: 'Almirante Espectro', act: 'freezeCannon' },
   ];
-  RS.WIND = { 3: 1.2, 8: 2.6, 10: 1.6, 11: 0.8 }; // viento por mundo (m/s² hacia la izquierda o la derecha)
+  RS.bossIdx = function (w) { var W = RS.WORLDS[w - 1]; return W && W.boss != null ? W.boss : (w - 1) % 12; };
+  RS.WIND = { 3: 1.2, 8: 2.6, 10: 1.6, 11: 0.8, 13: 0.6, 16: 2.4, 18: 1.0 }; // viento por mundo (m/s² hacia la izquierda o la derecha)
   RS.SHAPE_IDX = {}; RS.SHAPES.forEach(function (s, i) { RS.SHAPE_IDX[s.id] = i; });
 
   // hp: vida · dens: densidad · cost: puntos de construcción · luz/voladizo: reglas del constructor
@@ -106,7 +124,10 @@ var RS = typeof RS !== 'undefined' ? RS : {};
   );
   // sprite de un armadillo: f = fotograma de animación (0..7) o 'ball'
   RS.armSprite = function (a, f) {
-    if (a === 0 && RS.save && RS.save.skin >= 0 && RS.atlas && RS.atlas.arm_skins) return f === 'ball' ? ['arm_skins', RS.save.skin * 2 + 1] : f === 'abil' ? ['arm_abil', 0] : ['arm_skins', RS.save.skin * 2];
+    if (a === 0 && RS.save && RS.save.skin >= 0 && RS.atlas) {
+      var k = RS.save.skin, sk = RS.SKIN_SHEETS[Math.floor(k / 6)];
+      if (sk && RS.atlas[sk]) return f === 'ball' ? [sk, (k % 6) * 2 + 1] : f === 'abil' ? ['arm_abil', 0] : [sk, (k % 6) * 2];
+    }
     if (a < 12) return f === 'ball' ? ['arm_master', 12 + a] : f === 'abil' ? ['arm_abil', a] : ['arm_anim' + Math.floor(a / 3), (a % 3) * 8 + f];
     var b = a - 12;
     if (f === 'ball') return ['arm2_master', 12 + b];
@@ -114,6 +135,18 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     var sh = 'arm2_anim' + Math.floor(b / 3);
     if (RS.atlas && RS.atlas[sh]) return [sh, (b % 3) * 8 + f];
     return (f === 4) ? ['arm2_master', 12 + b] : ['arm2_master', b];
+  };
+  RS.SKIN_SHEETS = ['arm_skins', 'arm_skins_hal', 'arm_skins_nav', 'arm_skins_rob', 'arm_skins_dep', 'arm_skins_mit'];
+  // eventos de temporada: 10 niveles con mapaches, fondo y decorado propios; las skins se ganan jugando
+  RS.EVENTS = {
+    hal: { id: 'hal', name: 'Noche de Calabazas', from: [10, 1], to: [11, 10], bg: 'hal', deco: 'deco_hal', music: 'RSM16', baseW: 7, weather: 'fireflies', tod: 'night', skins: [6, 7, 8, 9, 10, 11], color: '#e67e22', icon: '🎃' },
+    nav: { id: 'nav', name: 'Navidad Bandida', from: [12, 1], to: [1, 15], bg: 'nav', deco: 'deco_nav', music: 'RSM05', baseW: 8, weather: 'snow', tod: 'dusk', skins: [12, 13, 14, 15, 16, 17], color: '#c0392b', icon: '🎄' },
+  };
+  RS.EVENT_LEVELS = 10;
+  RS.eventActive = function (id, d) {
+    var E = RS.EVENTS[id]; d = d || new Date(); var m = d.getMonth() + 1, day = d.getDate(), v = m * 100 + day;
+    var a = E.from[0] * 100 + E.from[1], b = E.to[0] * 100 + E.to[1];
+    return a <= b ? v >= a && v <= b : v >= a || v <= b;
   };
   RS.RARE = ['Común', 'Raro', 'Épico', 'Legendario'];
 
@@ -131,12 +164,22 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     { id: 10, name: 'Otoño Carmesí', bg: 'w10', music: 'RSM15', mats: [0, 0, 1, 3, 2], gemFrom: 0, map: 2 },
     { id: 11, name: 'Feria Encantada', bg: 'w11', music: 'RSM20', mats: [0, 3, 4, 0, 1, 2], gemFrom: 3, map: 2 },
     { id: 12, name: 'Reino Dorado', bg: 'w12', music: 'RSM18', mats: [5, 3, 4, 5, 1, 3], gemFrom: 5, map: 2 },
+    // Mares Bandidos (mapa 3)
+    { id: 13, name: 'Arrecife de Coral', bg: 'w13', music: 'RSM07', mats: [0, 0, 1, 2, 3, 4], gemFrom: 0, map: 3, boss: 15 },
+    { id: 14, name: 'Isla Calavera', bg: 'w14', music: 'RSM19', mats: [0, 1, 3, 1, 4, 5], gemFrom: 1, map: 3, boss: 16 },
+    { id: 15, name: 'Barco Fantasma', bg: 'w15', music: 'RSM16', mats: [0, 3, 0, 4, 5, 3], gemFrom: 2, map: 3, boss: 17 },
+    { id: 16, name: 'Tormenta en Alta Mar', bg: 'w16', music: 'RSM17', mats: [1, 3, 5, 2, 3, 4], gemFrom: 3, map: 3, boss: 12 },
+    { id: 17, name: 'Ciudad Sumergida', bg: 'w17', music: 'RSM20', mats: [2, 4, 1, 5, 4, 3], gemFrom: 4, map: 3, boss: 13 },
+    { id: 18, name: 'Fortaleza del Kraken', bg: 'w18', music: 'RSM18', mats: [5, 3, 5, 4, 3, 1], gemFrom: 5, map: 3, boss: 14 },
   ];
   RS.LEVELS_PER_WORLD = 20;
 
   RS.CLANS = {
     japon: { id: 'japon', name: 'Clan del Sol Naciente', short: 'Sol Naciente', desc: 'Castillos japoneses de madera lacada, piedra y oro.', music: 'RSM11', sign: 16, signBox: [0.5, 0.6, 0.72, 0.42, '#fff4d6'], color: '#c0392b' },
     oeste: { id: 'oeste', name: 'Clan de la Frontera', short: 'La Frontera', desc: 'Fuertes del Lejano Oeste: troncos, arenisca y chapa.', music: 'RSM12', sign: 18, signBox: [0.5, 0.7, 0.72, 0.4, '#fff4d6'], color: '#b9772f' },
+    vikingo: { id: 'vikingo', name: 'Clan del Norte', short: 'El Norte', desc: 'Fortalezas vikingas de roble, piedra nevada y runas.', music: 'RSM05', sign: 18, signBox: [0.5, 0.58, 0.72, 0.42, '#3a2410'], color: '#2e86c1' },
+    nilo: { id: 'nilo', name: 'Clan del Nilo', short: 'El Nilo', desc: 'Templos egipcios de arenisca, lapislázuli y oro.', music: 'RSM04', sign: 18, signBox: [0.5, 0.58, 0.72, 0.42, '#4a2a10'], color: '#d4ac0d' },
+    pirata: { id: 'pirata', name: 'Clan del Parche', short: 'El Parche', desc: 'Fuertes piratas de tablones, coral y hierro remachado.', music: 'RSM07', sign: 18, signBox: [0.5, 0.6, 0.72, 0.42, '#3a2410'], color: '#7b241c', rac: 'loro' },
     azteca: { id: 'azteca', name: 'Clan del Sol de Jade', short: 'Sol de Jade', desc: 'Templos aztecas de piedra tallada, jade y oro.', music: 'RSM13', sign: 18, signBox: [0.5, 0.55, 0.62, 0.45, '#4a2a10'], color: '#1f9e7a' },
   };
 
