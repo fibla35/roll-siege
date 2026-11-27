@@ -176,12 +176,69 @@
     this.uz = 1; this.ptrs = {};
     var top = 3; (level.pieces || []).forEach(function (p) { var a = RS.pieceAABB(p); if (a.y1 > top) top = a.y1; }); this.topY = top;
     this.resize(); this.camHome(true); this.intro = 0;
-    this.bind(); this.last = performance.now(); this.acc = 0;
+    this.bind(); this.last = performance.now(); this.acc = 0; this.initWeather();
     var self = this; this.raf = requestAnimationFrame(function f(t) { if (self.dead) return; self.frame(t); self.raf = requestAnimationFrame(f); });
   }
   RS.Game = Game;
 
-  Game.prototype.destroy = function () { this.dead = true; cancelAnimationFrame(this.raf); this.unbind(); };
+  Game.prototype.destroy = function () { this.dead = true; cancelAnimationFrame(this.raf); this.unbind(); if (RS.Audio.amb) RS.Audio.amb(null); };
+
+  // ---------- clima y ambiente (partículas en pantalla) ----------
+  var WXDEF = {
+    rain: { n: 110, col: 'rgba(200,220,255,0.55)', snd: 'rain' }, storm: { n: 160, col: 'rgba(220,235,255,0.7)', snd: 'rain', flash: true },
+    snow: { n: 70, col: 'rgba(255,255,255,0.9)', snd: 'wind' }, blizzard: { n: 170, col: 'rgba(255,255,255,0.95)', snd: 'wind' }, leaves: { n: 14, cols: ['#e07a2c', '#c9462b', '#e8b33a', '#7fa33a'] },
+    dust: { n: 40, col: 'rgba(240,190,120,0.35)', snd: 'wind' }, embers: { n: 45, cols: ['#ffb030', '#ff6a1a', '#ffd25a'] },
+    neon: { n: 26, cols: ['#ff4fd8', '#4fe3ff', '#b46bff'] }, fireflies: { n: 34, cols: ['#d8ff6a', '#fff59a'], snd: 'night' },
+    petals: { n: 22, cols: ['#ffc2d9', '#ffe1ec', '#fff'] }, sparkles: { n: 34, cols: ['#c48bff', '#6fd3ff', '#ff9bf2'] },
+    confetti: { n: 40, cols: ['#ff4d4d', '#ffd24d', '#4dd2ff', '#7dff6a', '#ff7de0'] }, gold: { n: 36, cols: ['#ffd23f', '#fff2a8', '#ffb020'] },
+  };
+  Game.prototype.initWeather = function () {
+    var k = this.level.weather; this.wx = null; if (!k || !WXDEF[k] || RS.save.fx === false) return;
+    var D = WXDEF[k], ps = [];
+    for (var i = 0; i < D.n; i++) ps.push(this.newDrop(k, true));
+    this.wx = { k: k, D: D, ps: ps, flash: 0, nextFlash: 4 + Math.random() * 6 };
+    if (D.snd && RS.Audio.amb) RS.Audio.amb(D.snd);
+  };
+  Game.prototype.newDrop = function (k, any) {
+    var W = this.W, H = this.H, d = this.dpr, r = Math.random;
+    var p = { x: r() * W, y: any ? r() * H : -10 * d, c: 0, s: 1, ph: r() * 7 };
+    if (k === 'rain' || k === 'storm') { p.vx = -60 * d; p.vy = (k === 'storm' ? 900 : 650) * d * (0.8 + r() * 0.4); p.l = (k === 'storm' ? 22 : 15) * d; }
+    else if (k === 'snow' || k === 'blizzard') { p.vx = (k === 'blizzard' ? -160 : -20) * d; p.vy = (35 + r() * 40) * d; p.s = (1.5 + r() * 2.5) * d; }
+    else if (k === 'dust') { p.vx = (70 + r() * 60) * d; p.vy = (r() - 0.5) * 10 * d; p.s = (1 + r() * 2) * d; p.y = any ? H * (0.4 + r() * 0.55) : H * (0.4 + r() * 0.55); if (!any) p.x = -10; }
+    else if (k === 'embers' || k === 'gold' || k === 'sparkles') { p.vx = (r() - 0.5) * 20 * d; p.vy = -(25 + r() * 45) * d; p.s = (2 + r() * 3) * d; if (!any) p.y = H + 10; if (k !== 'embers') { p.vy *= 0.4; } }
+    else if (k === 'fireflies' || k === 'neon') { p.vx = (r() - 0.5) * 25 * d; p.vy = (r() - 0.5) * 20 * d; p.s = (2.4 + r() * 2.6) * d; p.y = r() * H * 0.85; }
+    else { p.vx = (-25 - r() * 40) * d; p.vy = (30 + r() * 40) * d; p.s = (3 + r() * 4) * d; p.rot = r() * 7; p.vr = (r() - 0.5) * 4; }
+    var D = WXDEF[k]; if (D.cols) p.c = D.cols[Math.floor(r() * D.cols.length)];
+    return p;
+  };
+  Game.prototype.updateWeather = function (dt) {
+    var w = this.wx; if (!w) return; var self = this, W = this.W, H = this.H, wind = (this.phys.wind || 0) * 25 * this.dpr;
+    w.ps.forEach(function (p, i) {
+      p.ph += dt; p.x += (p.vx + wind) * dt; p.y += p.vy * dt; if (p.vr) p.rot += p.vr * dt;
+      if (w.k === 'fireflies' || w.k === 'neon') { p.vx += Math.sin(p.ph * 1.3) * 6 * self.dpr * dt * 10; p.vy += Math.cos(p.ph) * 5 * self.dpr * dt * 10; p.vx *= 0.98; p.vy *= 0.98; }
+      if (p.y > H + 20 || p.y < -30 || p.x < -40 || p.x > W + 40) w.ps[i] = self.newDrop(w.k, w.k === 'fireflies' || w.k === 'neon' || w.k === 'dust');
+    });
+    if (w.D.flash) { w.nextFlash -= dt; if (w.nextFlash <= 0) { w.flash = 1; w.nextFlash = 5 + Math.random() * 8; setTimeout(function () { RS.Audio.sfx('explode', 0.25); }, 350 + Math.random() * 600); } w.flash = Math.max(0, w.flash - dt * 3); }
+  };
+  Game.prototype.drawWeather = function (ctx) {
+    var w = this.wx; if (!w) return; var t = this.t;
+    ctx.save();
+    if (w.k === 'rain' || w.k === 'storm') {
+      ctx.fillStyle = w.k === 'storm' ? 'rgba(20,30,60,0.22)' : 'rgba(40,60,90,0.12)'; ctx.fillRect(0, 0, this.W, this.H);
+      ctx.strokeStyle = w.D.col; ctx.lineWidth = 1.4 * this.dpr; ctx.beginPath();
+      w.ps.forEach(function (p) { ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.vx * 0.02, p.y + p.l); }); ctx.stroke();
+      if (w.flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + (w.flash * 0.55) + ')'; ctx.fillRect(0, 0, this.W, this.H); }
+    } else {
+      w.ps.forEach(function (p) {
+        var glow = w.k === 'fireflies' || w.k === 'embers' || w.k === 'gold' || w.k === 'sparkles' || w.k === 'neon';
+        var a = glow ? 0.55 + 0.45 * Math.sin(p.ph * 4) : 1;
+        ctx.globalAlpha = a; ctx.fillStyle = p.c || w.D.col;
+        if (w.k === 'leaves' || w.k === 'petals' || w.k === 'confetti') { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); if (w.k === 'confetti') ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); else { ctx.beginPath(); ctx.ellipse(0, 0, p.s, p.s * 0.5, 0, 0, 7); ctx.fill(); } ctx.restore(); }
+        else { if (glow) { ctx.shadowColor = p.c; ctx.shadowBlur = 12 * (window.devicePixelRatio > 1 ? 2 : 1); } ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, 7); ctx.fill(); ctx.shadowBlur = 0; }
+      });
+    }
+    ctx.restore();
+  };
 
   Game.prototype.resize = function () {
     var d = Math.min(2, window.devicePixelRatio || 1);
@@ -309,7 +366,7 @@
   };
 
   Game.prototype.update = function (dt) {
-    this.t += dt; var P = this.phys;
+    this.t += dt; var P = this.phys; this.updateWeather(dt);
     if (this.state !== 'end' || P.time < 60) P.step(dt);
     this.handleEvents(P.drain());
     if (this.aim && this.power >= 0.999) this.overT = (this.overT || 0) + dt; else this.overT = 0;
@@ -533,6 +590,7 @@
     });
     // puntos de trayectoria y barra de pólvora
     if (this.state === 'aim') this.drawAim(ctx);
+    this.drawWeather(ctx);
     this.drawHudExtra(ctx);
     // textos flotantes
     ctx.textAlign = 'center'; ctx.font = (22 * this.dpr) + 'px Lilita, sans-serif';

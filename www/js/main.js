@@ -216,8 +216,8 @@
     $('hud_gems').textContent = game.phys.gemsLeft();
     var nr = game.phys.racs.length; $('hud_racp').style.display = nr ? '' : 'none'; if (nr) $('hud_racs').textContent = game.phys.racsLeft();
   }
-  $('pausebtn').onclick = function () { if (!game || game.ended) return; game.paused = true; RS.Audio.sfx('click'); syncAudioBtns(); $('pause').classList.add('show'); };
-  $('p_resume').onclick = function () { $('pause').classList.remove('show'); if (game) game.paused = false; };
+  $('pausebtn').onclick = function () { if (!game || game.ended) return; game.paused = true; if (RS.Audio._amb) RS.Audio._amb.g.gain.value = 0; RS.Audio.sfx('click'); syncAudioBtns(); $('pause').classList.add('show'); };
+  $('p_resume').onclick = function () { $('pause').classList.remove('show'); if (game) { game.paused = false; if (game.wx && game.wx.D.snd) RS.Audio.amb(game.wx.D.snd); } };
   $('p_retry').onclick = function () { $('pause').classList.remove('show'); retry(); };
   $('p_quit').onclick = function () { $('pause').classList.remove('show'); back(); };
   function syncAudioBtns() { $('p_mus').classList.toggle('off', S.vol.music === 0); $('p_snd').classList.toggle('off', S.vol.sfx === 0); }
@@ -228,7 +228,7 @@
   function back() { var k = ctxGame && ctxGame.kind; show(k === 'camp' ? 'levels' : k === 'league' ? 'league' : 'build'); }
 
   function onEnd(r) {
-    var c = ctxGame, txt = '';
+    var c = ctxGame, txt = ''; $('hint').style.opacity = 0; $('armtip').classList.remove('show');
     RS.Audio.play(r.win ? 'RSM14_victoria' : 'RSM14_derrota');
     $('r_title').src = 'img/ui/' + (r.win ? 't_victoria' : 't_derrota') + '.webp';
     var st = ''; for (var i = 0; i < 3; i++) st += '<img src="img/ui/star' + (i < r.stars ? 1 : 0) + '.webp">';
@@ -440,7 +440,7 @@
   SCREENS.settings = function () {
     var jb = $('s_jb'); jb.innerHTML = '';
     TRACKS.forEach(function (t) { var b = document.createElement('button'); b.className = 'tb' + (RS.Audio.cur === t[0] ? ' sel' : ''); b.textContent = '▶ ' + t[1]; b.onclick = function () { RS.Audio.init(); playTrack(t[0]); SCREENS.settings(); }; jb.appendChild(b); });
-    $('s_mus').value = S.vol.music; $('s_sfx').value = S.vol.sfx; $('s_style').value = S.musicStyle; $('s_can').value = S.cannon;
+    $('s_mus').value = S.vol.music; $('s_sfx').value = S.vol.sfx; $('s_style').value = S.musicStyle; $('s_can').value = S.cannon; $('s_fx').value = S.fx === false ? '0' : '1';
     var sc = $('s_clan'); sc.innerHTML = ''; Object.keys(RS.CLANS).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = RS.CLANS[k].short; sc.appendChild(o); }); sc.value = S.clan;
     $('s_unlock').textContent = S.unlockAll ? 'Bloquear de nuevo' : 'Desbloquear todo (pruebas)';
   };
@@ -449,6 +449,7 @@
   $('s_sfx').onchange = function () { RS.Audio.sfx('gem'); };
   $('s_style').onchange = function () { S.musicStyle = this.value; persist(); var c = RS.Audio.cur; RS.Audio.cur = null; RS.Audio.play('RSM01'); };
   $('s_clan').onchange = function () { S.clan = this.value; persist(); toast('Clan: ' + RS.CLANS[S.clan].short); };
+  $('s_fx').onchange = function () { S.fx = this.value === '1'; persist(); };
   $('s_can').onchange = function () { S.cannon = +this.value; persist(); };
   $('s_unlock').onclick = function () { S.unlockAll = !S.unlockAll; persist(); SCREENS.settings(); toast(S.unlockAll ? 'Todo desbloqueado' : 'Bloqueado'); };
   $('s_reset').onclick = function () { ask('¿Borrar toda la partida?', function () { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); }); };

@@ -146,7 +146,13 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     var span = x - 17;
     var three = Math.round(span * 120 + racs.length * 2000 + (boss ? 8000 : 0) + B.gems.length * 1000);
     var wind = RS.WIND[w] ? RS.WIND[w] * (n % 2 ? 1 : -1) * (0.6 + R3() * 0.6) : 0;
-    return { w: w, n: n, boss: boss, pieces: B.pieces, gems: B.gems, racs: racs, wind: Math.round(wind * 10) / 10, arms: arms, end: boss ? x + 1.5 : x, stars: [1, three * 0.5, three * 0.8] };
+    // clima: cada mundo tiene su ambiente y algunos niveles llueve suave
+    var WX = { 1: 'leaves', 2: 'dust', 3: 'snow', 4: 'embers', 5: 'rain', 6: 'neon', 7: 'fireflies', 8: 'petals', 9: 'sparkles', 10: 'leaves', 11: 'confetti', 12: 'gold' };
+    var weather = WX[w] || null;
+    if ([1, 2, 5, 7, 10].indexOf(w) >= 0 && n % 4 === 2) weather = 'rain';
+    if (w === 3 && n % 5 === 4) weather = 'blizzard';
+    if (boss) weather = w === 3 ? 'blizzard' : w === 4 || w === 9 || w === 12 ? WX[w] : 'storm';
+    return { w: w, n: n, boss: boss, weather: weather, pieces: B.pieces, gems: B.gems, racs: racs, wind: Math.round(wind * 10) / 10, arms: arms, end: boss ? x + 1.5 : x, stars: [1, three * 0.5, three * 0.8] };
   };
 
   // fortaleza rival para la Liga (estilo de clan aleatorio)

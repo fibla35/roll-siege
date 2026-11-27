@@ -34,6 +34,20 @@
     if (A.vol.music > 0) m.play().catch(function () {});
     var fi = setInterval(function () { m.volume = Math.min(A.vol.music, m.volume + 0.05); if (m.volume >= A.vol.music - 0.01) clearInterval(fi); }, 60);
   };
+  // ambiente generado en tiempo real: lluvia, viento, noche (grillos)
+  A.amb = function (kind) {
+    if (A._amb) { try { var o = A._amb; o.g.gain.setTargetAtTime(0, A.ctx.currentTime, 0.3); setTimeout(function () { o.src.stop(); if (o.lfo) o.lfo.stop(); }, 1200); } catch (e) {} A._amb = null; }
+    if (!kind || !A.ctx || A.vol.sfx <= 0) return;
+    var c = A.ctx, n = c.sampleRate * 2, buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0), last = 0;
+    for (var i = 0; i < n; i++) { var w = Math.random() * 2 - 1; last = kind === 'wind' ? last * 0.995 + w * 0.05 : w; d[i] = last; }
+    var src = c.createBufferSource(); src.buffer = buf; src.loop = true;
+    var f = c.createBiquadFilter(), g = c.createGain(), lfo = null;
+    if (kind === 'rain') { f.type = 'highpass'; f.frequency.value = 1400; g.gain.value = 0; g.gain.setTargetAtTime(0.06 * A.vol.sfx, c.currentTime, 1); }
+    else if (kind === 'wind') { f.type = 'lowpass'; f.frequency.value = 600; g.gain.value = 0; g.gain.setTargetAtTime(0.18 * A.vol.sfx, c.currentTime, 1.5); lfo = c.createOscillator(); var lg = c.createGain(); lfo.frequency.value = 0.15; lg.gain.value = 250; lfo.connect(lg); lg.connect(f.frequency); lfo.start(); }
+    else { f.type = 'bandpass'; f.frequency.value = 4800; f.Q.value = 18; g.gain.value = 0; lfo = c.createOscillator(); var lg2 = c.createGain(); lfo.type = 'square'; lfo.frequency.value = 6; lg2.gain.value = 0.05 * A.vol.sfx; lfo.connect(lg2); lg2.connect(g.gain); lfo.start(); }
+    src.connect(f); f.connect(g); g.connect(c.destination); src.start();
+    A._amb = { src: src, g: g, lfo: lfo };
+  };
   A.setVol = function (k, v) {
     A.vol[k] = v;
     if (k === 'music' && A.music) { A.music.volume = v; if (v > 0 && A.music.paused) A.music.play().catch(function () {}); if (v === 0) A.music.pause(); }
