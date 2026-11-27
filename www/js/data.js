@@ -31,6 +31,9 @@ var RS = typeof RS !== 'undefined' ? RS : {};
   ];
   RS.MAX_TRAPS = 5;
   RS.SHAPES.push({ id: 'jaula', name: 'Jaula', w: 1, h: 1, kind: 'box', cat: 'cage', mat: 0, cage: true, cost: 0 });
+  // tejados grandes (al final para no cambiar los índices de las piezas ya guardadas); usan el dibujo del tejado
+  RS.SHAPES.push({ id: 'tejado3', name: 'Tejado grande', noTop: true, w: 3, h: 1.5, kind: 'poly', spr: 5, cost3: 3, pts: [[-1.5, -0.75], [1.5, -0.75], [0, 0.75]] });
+  RS.SHAPES.push({ id: 'tejado4', name: 'Tejado enorme', noTop: true, w: 4, h: 2, kind: 'poly', spr: 5, cost3: 4, pts: [[-2, -1], [2, -1], [0, 1]] });
   RS.SHAPE_IDX = {}; RS.SHAPES.forEach(function (s, i) { RS.SHAPE_IDX[s.id] = i; });
 
   // Mapaches bandidos. act = lo que hacen entre disparo y disparo. sheet/row = dónde irá su sprite (hojas RS90-95)

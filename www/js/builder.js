@@ -7,7 +7,7 @@
   RS.buildBudget = function (S, maxWorld) { return Math.min(480, 160 + 25 * ((maxWorld || 1) - 1) + Math.floor((S.trophies || 0) / 4)); };
   RS.pieceCost = function (p) {
     var s = RS.SHAPES[p.s];
-    return (s.cost != null ? s.cost : RS.MATS[p.m].cost * (s.w * s.h >= 2 ? 2 : 1)) + (p.weld && !s.weld ? 1 : 0);
+    return (s.cost != null ? s.cost : RS.MATS[p.m].cost * (s.cost3 || (s.w * s.h >= 2 ? 2 : 1))) + (p.weld && !s.weld ? 1 : 0);
   };
   function I(id) { return RS.SHAPE_IDX[id]; }
   // plantillas: [forma, material (null = el elegido), x, y (centro, desde la esquina inferior izquierda), rot, flip, soldar]

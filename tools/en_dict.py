@@ -26,7 +26,7 @@ EN = {
 'Tocadiscos (toca para escuchar)': 'Jukebox (tap to listen)', '¿Seguro?': 'Are you sure?', 'Cancelar': 'Cancel', 'Aceptar': 'OK', 'Idioma': 'Language',
 'Copia de seguridad': 'Backup', 'Copiar código': 'Copy code', 'Restaurar': 'Restore',
 # --- piezas y materiales
-'Cubo': 'Cube', 'Bloque': 'Block', 'Tablón': 'Plank', 'Viga': 'Beam', 'Triángulo': 'Triangle', 'Tejado': 'Roof', 'Arco': 'Arch', 'Rueda': 'Wheel',
+'Cubo': 'Cube', 'Bloque': 'Block', 'Tablón': 'Plank', 'Viga': 'Beam', 'Triángulo': 'Triangle', 'Tejado': 'Roof', 'Tejado grande': 'Big roof', 'Tejado enorme': 'Huge roof', 'Arco': 'Arch', 'Rueda': 'Wheel',
 'Escuadra': 'Bracket', 'Ángulo de hierro: se suelda a lo que toca y une esquinas.': 'Iron angle: welds to what it touches and joins corners.',
 'Puntal de madera': 'Wooden strut', 'Diagonal que apuntala paredes y pisos. Gira para la otra diagonal.': 'Diagonal that braces walls and floors. Rotate for the other diagonal.',
 'Puntal de hierro': 'Iron strut', 'Diagonal de hierro, mucho más resistente.': 'Iron diagonal, much tougher.', 'Contrafuerte': 'Buttress',

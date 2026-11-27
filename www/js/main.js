@@ -508,7 +508,9 @@
     if (B.tool === 'place') {
       CATS.forEach(function (c) { pal.appendChild(tb(c[1], B.cat === c[0], function () { B.cat = c[0]; var first = RS.SHAPES.findIndex(function (sh) { return (sh.cat || 'est') === c[0]; }); if ((RS.SHAPES[B.shape].cat || 'est') !== c[0]) B.shape = first; buildUI(); }, 'cat')); });
       pal.appendChild(sep());
-      RS.SHAPES.forEach(function (sh, i) {
+      var order = RS.SHAPES.map(function (sh, i) { return i; }), ti = RS.SHAPE_IDX.tejado;
+      order = order.filter(function (i) { return !RS.SHAPES[i].spr; }); order.splice(order.indexOf(ti) + 1, 0, RS.SHAPE_IDX.tejado3, RS.SHAPE_IDX.tejado4);
+      order.forEach(function (i) { var sh = RS.SHAPES[i];
         if ((sh.cat || 'est') !== B.cat) return;
         var p = { s: i, m: sh.mat != null ? sh.mat : B.mat, rot: sh.sprite || sh.kind === 'circle' ? 0 : B.rot, flip: B.flip };
         var b = tb(pieceIcon(p, 72, 48), B.shape === i, function () { B.shape = i; buildUI(); });

@@ -25,6 +25,7 @@
   };
   RS.spAspect = function (sheet, idx) { var r = RS.atlas[sheet] && RS.atlas[sheet][idx]; return r ? r[2] / r[3] : 1; };
   RS.blockSprite = function (style, m, s, broken) {
+    if (RS.SHAPES[s] && RS.SHAPES[s].spr != null) s = RS.SHAPES[s].spr;
     var half = m % 2, row = (s < 4 ? 0 : 1) + (broken ? 2 : 0), col = (s % 4) + half * 4;
     return { sheet: 'blk_' + style + Math.floor(m / 2), idx: row * 8 + col };
   };
