@@ -1,0 +1,8 @@
+{
+  "appId": "com.fibla.rollsiege",
+  "appName": "Roll Siege",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#1b120b"
+  }
+}
