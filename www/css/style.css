@@ -117,3 +117,4 @@ input, select { font-family: Nunito; font-weight: 800; font-size: 3vh; padding: 
 .tb.cat { background: #5a3a1c; font-size: 2.4vh; }
 .tb.cat.sel { background: #f0a020; }
 .tb canvas { height: 6vh; width: auto; }
+#dlg { z-index: 30; } #dlg h2 { font-size: 4.2vh; text-align: center; max-width: 60vw; }

@@ -4,7 +4,8 @@
   var cv = $('cv');
   var KEY = 'rollsiege_v1';
   var DEF = { clan: null, name: '', stars: {}, best: {}, coins: 300, trophies: 0, unlockAll: false, layout: null, stable: false, musicStyle: 'mezcla', vol: { music: 0.6, sfx: 0.8 }, cannon: 0, rivalSeed: 1, defLog: [], seenHint: 0 };
-  RS.save = Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || '{}'));
+  var stored = {}; try { stored = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+  RS.save = Object.assign({}, DEF, stored);
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(RS.save)); } catch (e) {} }
   RS.persist = persist;
   var S = RS.save;
@@ -16,6 +17,14 @@
   };
   RS.loadBg = function (k) { return Promise.all(['', '_mid', '_ground'].map(function (s) { return RS.loadImg('bg_' + k + s); })); };
 
+  // diálogo propio (alert/confirm/prompt no funcionan en todas partes)
+  function ask(text, cb, input) {
+    var m = $('dlg'); $('dlg_t').textContent = text; var inp = $('dlg_in');
+    inp.style.display = input != null ? '' : 'none'; if (input != null) inp.value = input;
+    m.classList.add('show');
+    $('dlg_ok').onclick = function () { m.classList.remove('show'); cb(input != null ? inp.value : true); };
+    $('dlg_no').onclick = function () { m.classList.remove('show'); };
+  }
   function toast(t) { var e = $('toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(function () { e.classList.remove('show'); }, 1800); }
   RS.toast = toast;
 
@@ -262,8 +271,8 @@
     tl.appendChild(tb('🔍−', false, function () { B.zoom(1 / 1.3); }));
     tl.appendChild(tb('🔍+', false, function () { B.zoom(1.3); }));
     tl.appendChild(tb('👁 Vista', B.tool === 'pan', function () { B.setTool('pan'); buildUI(); }));
-    tl.appendChild(tb('✏ Nombre', false, function () { var v = prompt('Nombre de tu fortaleza', S.name); if (v) { S.name = v.slice(0, 20); persist(); if (B.L.sign) B.L.sign.name = S.name; } }));
-    tl.appendChild(tb('✖ Vaciar', false, function () { if (confirm('¿Borrar toda la fortaleza?')) { B.snap(); B.L.pieces = []; B.L.gems = []; B.L.deco = []; B.L.sign = null; B.changed(); } }));
+    tl.appendChild(tb('✏ Nombre', false, function () { ask('Nombre de tu fortaleza', function (v) { v = (v || '').trim(); if (v) { S.name = v.slice(0, 20); persist(); if (B.L.sign) B.L.sign.name = S.name; toast('Nombre: ' + S.name); } }, S.name); }));
+    tl.appendChild(tb('✖ Vaciar', false, function () { ask('¿Borrar toda la fortaleza?', function () { B.snap(); B.L.pieces = []; B.L.gems = []; B.L.deco = []; B.L.sign = null; B.changed(); }); }));
     var info = '';
     if (B.tool === 'place') {
       CATS.forEach(function (c) { pal.appendChild(tb(c[1], B.cat === c[0], function () { B.cat = c[0]; var first = RS.SHAPES.findIndex(function (sh) { return (sh.cat || 'est') === c[0]; }); if ((RS.SHAPES[B.shape].cat || 'est') !== c[0]) B.shape = first; buildUI(); }, 'cat')); });
@@ -313,7 +322,7 @@
     });
   };
   $('b_back').onclick = function () {
-    if (builder && JSON.stringify(builder.L) !== JSON.stringify(S.layout || { pieces: [], gems: [], deco: [], sign: null }) && !confirm('¿Salir sin guardar?')) return;
+    if (builder && JSON.stringify(builder.L) !== JSON.stringify(S.layout || { pieces: [], gems: [], deco: [], sign: null })) return ask('¿Salir sin guardar los cambios?', function () { show('home'); });
     show('home');
   };
   $('b_test').onclick = function () { if (builder) builder.testGravity(function () { updB(); }); };
@@ -356,7 +365,7 @@
   $('s_clan').onchange = function () { S.clan = this.value; persist(); toast('Clan: ' + RS.CLANS[S.clan].short); };
   $('s_can').onchange = function () { S.cannon = +this.value; persist(); };
   $('s_unlock').onclick = function () { S.unlockAll = !S.unlockAll; persist(); SCREENS.settings(); toast(S.unlockAll ? 'Todo desbloqueado' : 'Bloqueado'); };
-  $('s_reset').onclick = function () { if (confirm('¿Borrar toda la partida?')) { localStorage.removeItem(KEY); location.reload(); } };
+  $('s_reset').onclick = function () { ask('¿Borrar toda la partida?', function () { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); }); };
 
   // botón atrás de Android
   document.addEventListener('backbutton', function () {
@@ -367,8 +376,7 @@
     if (cur !== 'home' && cur !== 'title') show('home');
   });
   try { var CapApp = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App; if (CapApp) CapApp.addListener('backButton', function () { if (cur === 'home' || cur === 'title') CapApp.exitApp(); else document.dispatchEvent(new Event('backbutton')); }); } catch (e) {}
-  window.addEventListener('popstate', function () { history.pushState(null, ''); document.dispatchEvent(new Event('backbutton')); });
-  history.pushState(null, '');
+  try { if (window.Capacitor) { window.addEventListener('popstate', function () { history.pushState(null, ''); document.dispatchEvent(new Event('backbutton')); }); history.pushState(null, ''); } } catch (e) {}
   window.addEventListener('resize', function () { if (cur === 'map') SCREENS.map(); });
   document.addEventListener('pointerdown', function () { RS.Audio.init(); if (RS.Audio.music && RS.Audio.music.paused && S.vol.music > 0) RS.Audio.music.play().catch(function () {}); }, { once: false, passive: true });
 
