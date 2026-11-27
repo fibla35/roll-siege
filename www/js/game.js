@@ -56,6 +56,21 @@
 
   // mapache provisional dibujado por código (se cambiará por los sprites de GPT)
   RS.drawRac = function (ctx, r, x, y, ang, s, t) {
+    var ti = r.boss ? (r.bi || 0) : RS.RACS.indexOf(r.T), sh = r.boss ? 'boss' + (Math.floor(ti / 3) + 1) : 'rac' + (Math.floor(ti / 3) + 1);
+    if (RS.atlas[sh] && RS.img[sh]) {
+      var row = ti % 3, f;
+      if (r.ko) f = 6; else if (r.hurtT > 0) f = 4; else if (r.actT > 0) f = 3; else if (r.win) f = 7;
+      else { var c = (t + r.idx * 1.7) % 5; f = c < 0.15 ? 1 : (c > 3.6 && c < 4.4 && !r.boss) ? 2 : (r.boss && c > 3.6 && c < 4.4) ? 2 : 0; }
+      var idx = row * 8 + f, H = r.h * s * 1.32, Wd = H * RS.spAspect(sh, idx);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+      if (r.ko) ctx.globalAlpha = Math.max(0, 1 - Math.max(0, r.koT - 0.6) / 0.8);
+      var bob = r.ko ? 0 : Math.sin(t * 3 + r.idx) * 0.012 * s;
+      RS.drawSp(ctx, sh, idx, 0, r.h * s / 2 - H / 2 + bob, Wd, H);
+      if (r.helmet && !r.ko) { ctx.fillStyle = '#9aa0a8'; ctx.strokeStyle = '#555'; ctx.lineWidth = Math.max(1, s * 0.03); ctx.beginPath(); ctx.arc(0, r.h * s / 2 - H * 0.86, r.w * s * 0.42, Math.PI, 0); ctx.fill(); ctx.stroke(); }
+      ctx.restore();
+      if (r.shield && !r.ko) { ctx.save(); ctx.globalAlpha = 0.3 + 0.1 * Math.sin(t * 4); ctx.fillStyle = '#9ff3ff'; ctx.strokeStyle = '#e8fdff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, Math.max(r.w, r.h) * s * 0.85, 0, 7); ctx.fill(); ctx.stroke(); ctx.restore(); }
+      return;
+    }
     var T = r.T, w = r.w * s, h = r.h * s, ko = r.ko, hurt = r.hurtT > 0, k = Math.min(1, w / (0.7 * s)) ;
     ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
     if (ko) ctx.globalAlpha = Math.max(0, 1 - r.koT / 1.4);
@@ -103,6 +118,7 @@
     if (r.shield && !ko) { ctx.save(); ctx.globalAlpha = 0.3 + 0.1 * Math.sin(t * 4); ctx.fillStyle = '#9ff3ff'; ctx.strokeStyle = '#e8fdff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, Math.max(w, h) * 0.75, 0, 7); ctx.fill(); ctx.stroke(); ctx.restore(); }
   };
   RS.drawCage = function (ctx, x, y, ang, s, broken) {
+    if (RS.img.siege && RS.atlas.siege) { var a0 = RS.spAspect('siege', broken ? 1 : 0), h0 = s * 1.02; RS.drawSp(ctx, 'siege', broken ? 1 : 0, x, y, h0 * a0, h0, ang); return; }
     var w = s, h = s; ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
     ctx.fillStyle = 'rgba(40,25,10,0.35)'; ctx.fillRect(-w / 2, -h / 2, w, h);
     // armadillo triste dentro
@@ -225,7 +241,7 @@
     if (this.state === 'aim' && !this.queue[this.sel].used) { this.view = 0; this.aim = { sx: x, sy: y, cx: x, cy: y, full: 0 }; RS.Audio.sfx('click', 0.4); if (this.o.onAim) this.o.onAim(); }
     else if (this.state === 'flight') {
       var b = this.phys.activeBall();
-      if (b && !b.used) { var k = this.phys.ability(b); if (k) this.abilityFx(k, b); }
+      if (b && !b.used) { var tw = { x: (x - this.W / 2) / this.cam.s + this.cam.x, y: (this.H * 0.86 + this.camLift() - y) / this.cam.s }; var k = this.phys.ability(b, tw); if (k) this.abilityFx(k, b); }
     }
   };
   Game.prototype.pinchD = function () { var self = this, p = Object.keys(this.ptrs).map(function (k) { return self.ptrs[k]; }); return Math.max(20, Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y)); };
@@ -278,9 +294,9 @@
 
   Game.prototype.abilityFx = function (kind, b) {
     var p = b.body.getPosition();
-    var snd = { slam: 'whoosh', split: 'magic', drill: 'zap', boom: 'explode', bounce: 'bounce', magnet: 'magic', grow: 'magic', boomerang: 'whoosh', freeze: 'ice_break', meteor: 'explode', dash: 'zap', ghost: 'magic' }[kind];
+    var snd = { stick: 'pour', tornado: 'whoosh', bubble: 'magic', cut: 'zap', magma: 'explode', mirror: 'magic', lead: 'whoosh', rocket: 'cannon', vine: 'wood_hit', shard: 'glass_break', astral: 'magic', royal: 'star', slam: 'whoosh', split: 'magic', drill: 'zap', boom: 'explode', bounce: 'bounce', magnet: 'magic', grow: 'magic', boomerang: 'whoosh', freeze: 'ice_break', meteor: 'explode', dash: 'zap', ghost: 'magic' }[kind];
     RS.Audio.sfx(snd, 0.8);
-    this.parts.push({ fx: 'arm_abil', fr: [b.arm], x: p.x, y: p.y, w: 2.2, life: 0.35, t: 0, fade: true });
+    var asp0 = RS.armSprite(b.arm, 'abil'); this.parts.push({ fx: asp0[0], fr: [asp0[1]], x: p.x, y: p.y, w: 2.2, life: 0.35, t: 0, fade: true });
     if (kind === 'freeze') for (var i = 0; i < 8; i++) this.parts.push({ fx: 'fx', fr: [12, 13, 14, 15], x: p.x + (Math.random() - 0.5) * 6, y: p.y + (Math.random() - 0.5) * 5, w: 1.6, life: 0.7, t: 0 });
     if (this.o.onAbility) this.o.onAbility(kind);
   };
@@ -321,7 +337,7 @@
       this.dT += dt; this.camHome(false);
       if (this.dT > 1.2) this.enemyFire();
     } else if (this.state === 'enemy') {
-      this.enemyT += dt; this.camHome(false);
+      this.enemyT += dt; this.camHome(false); P.racs.forEach(function (r) { if (r.actT > 0) r.actT -= dt; });
       if (this.enemyT > 2.0) { this.state = 'aim'; if (this.o.onQueue) this.o.onQueue(); }
     } else if (this.state === 'settle') {
       this.settleT += dt;
@@ -377,7 +393,7 @@
     acts.sort(function () { return Math.random() - 0.5; }); acts = acts.slice(0, 2);
     var g = this.cannonGeo();
     acts.forEach(function (A, i) {
-      var r = A.r, q = r.body.getPosition(), a = A.a, delay = i * 0.55;
+      var r = A.r, q = r.body.getPosition(), a = A.a, delay = i * 0.55; r.actT = 1.2 + delay;
       var fly = function (kind, cb) { self.parts.push({ proj: kind, x0: q.x, y0: q.y + 0.4, x1: g.pivot.x, y1: g.pivot.y + 0.3, t: -delay, life: 0.9, done: cb }); };
       if (a === 'sling') fly('pina', function () { self.cap = 0.82; self.debuff('🌰 ¡Pólvora mojada! Máx. 82 %'); });
       else if (a === 'bomb') fly('bomba', function () { self.jitter = 0.16; self.shake = 14 * self.dpr; RS.Audio.sfx('explode', 0.6); self.parts.push({ fx: 'fx', fr: [0, 1, 2, 3], x: g.pivot.x, y: g.pivot.y, w: 2.6, life: 0.5, t: 0 }); self.debuff('💣 ¡Cañón torcido! Puntería inestable'); });
@@ -398,6 +414,7 @@
 
   Game.prototype.finish = function (win) {
     if (this.ended) return; this.ended = true; this.state = 'end';
+    if (!win) this.phys.racs.forEach(function (r) { if (!r.ko) r.win = true; });
     var left = this.queue.filter(function (q) { return !q.used; }).length;
     var bonus = win ? left * 1500 : 0, score = this.phys.score + bonus;
     var st = this.level.stars, stars = win ? 1 + (score >= st[1] ? 1 : 0) + (score >= st[2] ? 1 : 0) : 0;
@@ -428,6 +445,7 @@
       } else if (e.t === 'rachit') { RS.Audio.sfx('wood_hit', 0.4);
       } else if (e.t === 'shieldpop') { RS.Audio.sfx('glass_break', 0.7); self.parts.push({ fx: 'fx', fr: [12, 13, 14, 15], x: e.x, y: e.y, w: 2.2, life: 0.4, t: 0, fade: true });
       } else if (e.t === 'cage') {
+        self.parts.push({ fx: 'siege', fr: [1], x: e.x, y: e.y, w: 1.1, life: 1.2, t: 0, fade: true, vy: -0.2 });
         var arm = e.arm != null ? e.arm : 1; self.queue.push({ arm: arm, used: false, freed: true });
         RS.Audio.sfx('magic', 0.9); self.pops.push({ x: e.x, y: e.y + 1.2, t: 0, txt: '¡' + RS.ARMS[arm].name + ' liberado!', gold: true });
         if (self.o.onQueue) self.o.onQueue();
@@ -501,13 +519,14 @@
       if (u.fire && Math.random() < 0.6) self.parts.push({ fx: 'fx', fr: [1, 2, 3], x: p.x, y: p.y, w: u.r * 3, life: 0.3, t: 0 });
       if (u.drillT > 0) { ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffcf40'; ctx.lineWidth = 4 * self.dpr; ctx.beginPath(); ctx.arc(self.sx(p.x), self.sy(p.y), r * 0.6, self.t * 20, self.t * 20 + 4); ctx.stroke(); ctx.restore(); }
       if (u.magT > 0) { ctx.save(); ctx.globalAlpha = 0.4; ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 3 * self.dpr; for (var k = 1; k <= 3; k++) { ctx.beginPath(); ctx.arc(self.sx(p.x), self.sy(p.y), r * (0.6 + k * 0.5 + (self.t * 2 % 0.5)), 0, TAU); ctx.stroke(); } ctx.restore(); }
-      RS.drawSp(ctx, 'arm_master', 12 + u.arm, self.sx(p.x), self.sy(p.y), r, r, -u.body.getAngle(), false, u.ghostT > 0 ? 0.45 : 1);
+      var bsp = RS.armSprite(u.arm, 'ball'); RS.drawSp(ctx, bsp[0], bsp[1], self.sx(p.x), self.sy(p.y), r, r, -u.body.getAngle(), false, u.ghostT > 0 ? 0.45 : 1);
+      if (u.bubbleT > 0) { ctx.save(); ctx.globalAlpha = 0.35; ctx.fillStyle = '#d8f4ff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * self.dpr; ctx.beginPath(); ctx.arc(self.sx(p.x), self.sy(p.y), r * 0.85, 0, TAU); ctx.fill(); ctx.stroke(); ctx.restore(); }
     });
     // balas de torreta
     this.phys.shells.forEach(function (sh) { var q = sh.body.getPosition(); ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(self.sx(q.x), self.sy(q.y), 0.22 * s, 0, TAU); ctx.fill(); });
     // partículas
     this.parts.forEach(function (p) {
-      if (p.proj) { if (p.t < 0) return; var k = p.t / p.life, X = p.x0 + (p.x1 - p.x0) * k, Y = p.y0 + (p.y1 - p.y0) * k + Math.sin(k * Math.PI) * 4; var col = { pina: '#8b5a2b', bomba: '#1a1a1a', hielo: '#bfefff', tarta: '#f8e1b0' }[p.proj]; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(self.sx(X), self.sy(Y), 0.25 * s, 0, TAU); ctx.fill(); if (p.proj === 'bomba') { ctx.fillStyle = '#ffb030'; ctx.beginPath(); ctx.arc(self.sx(X) + 0.15 * s, self.sy(Y) - 0.2 * s, 0.07 * s, 0, TAU); ctx.fill(); } if (p.proj === 'tarta') { ctx.fillStyle = '#e84393'; ctx.beginPath(); ctx.arc(self.sx(X), self.sy(Y) - 0.1 * s, 0.12 * s, 0, TAU); ctx.fill(); } return; }
+      if (p.proj) { if (p.t < 0) return; var k = p.t / p.life, X = p.x0 + (p.x1 - p.x0) * k, Y = p.y0 + (p.y1 - p.y0) * k + Math.sin(k * Math.PI) * 4; var spi = { pina: 4, bomba: 5, hielo: 8 }[p.proj]; if (spi != null && RS.img.siege) { RS.drawSp(ctx, 'siege', spi, self.sx(X), self.sy(Y), 0.7 * s, 0.7 * s, p.t * 8); return; } var col = { pina: '#8b5a2b', bomba: '#1a1a1a', hielo: '#bfefff', tarta: '#f8e1b0' }[p.proj]; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(self.sx(X), self.sy(Y), 0.25 * s, 0, TAU); ctx.fill(); if (p.proj === 'bomba') { ctx.fillStyle = '#ffb030'; ctx.beginPath(); ctx.arc(self.sx(X) + 0.15 * s, self.sy(Y) - 0.2 * s, 0.07 * s, 0, TAU); ctx.fill(); } if (p.proj === 'tarta') { ctx.fillStyle = '#e84393'; ctx.beginPath(); ctx.arc(self.sx(X), self.sy(Y) - 0.1 * s, 0.12 * s, 0, TAU); ctx.fill(); } return; }
       var f = p.fr[Math.min(p.fr.length - 1, Math.floor(p.t / p.life * p.fr.length))];
       var w = p.w * s, h = w / RS.spAspect(p.fx, f);
       RS.drawSp(ctx, p.fx, f, self.sx(p.x), self.sy(p.y), w, h, p.ang || 0, false, p.fade ? Math.max(0, 1 - p.t / p.life) : 1);
@@ -545,17 +564,22 @@
     // armadillo esperando a la izquierda
     var q = this.queue[this.sel];
     if (q && !q.used && this.state !== 'flight') {
-      var a = q.arm, sh = 'arm_anim' + Math.floor(a / 3), row = a % 3, f;
+      var a = q.arm, f;
       if (this.ended) f = this.result && this.result.win ? 6 : 7;
       else if (this.aim) f = this.power > 0.5 ? 4 : 3;
       else { var cyc = this.t % 4; f = cyc < 0.15 ? 1 : (Math.floor(this.t * 1.5) % 2 ? 2 : 0); }
-      var hgt = 1.5, idx = row * 8 + f, wdt = hgt * RS.spAspect(sh, idx);
+      var asp1 = RS.armSprite(a, f), sh = asp1[0], idx = asp1[1], hgt = 1.5, wdt = hgt * RS.spAspect(sh, idx);
       RS.drawSp(ctx, sh, idx, this.sx(this.cannonX - 2.1), this.sy(hgt / 2), wdt * s, hgt * s);
     } else if (this.ended && this.result) {
-      var a2 = (this.queue.find(function (q) { return !q.used; }) || this.queue[0] || { arm: 0 }).arm, sh2 = 'arm_anim' + Math.floor(a2 / 3), idx2 = (a2 % 3) * 8 + (this.result.win ? 6 : 7);
+      var a2 = (this.queue.find(function (q) { return !q.used; }) || this.queue[0] || { arm: 0 }).arm, asp2 = RS.armSprite(a2, this.result.win ? 6 : 7), sh2 = asp2[0], idx2 = asp2[1];
       RS.drawSp(ctx, sh2, idx2, this.sx(this.cannonX - 2.1), this.sy(0.75), 1.5 * s * RS.spAspect(sh2, idx2), 1.5 * s);
     }
-    if (this.defense) { if (!this._gunner) this._gunner = { T: RS.RACS[1], w: 0.7, h: 0.95, idx: 0, koT: 0 }; RS.drawRac(ctx, this._gunner, this.sx(this.cannonX - 2.1), this.sy(0.48), 0, s, this.t); }
+    if (this.defense) {
+      if (!this._gunner) this._gunner = { T: RS.RACS[0], w: 0.7, h: 0.9, idx: 0, koT: 0 };
+      this._gunner.actT = this.state === 'flight' && this.flightT < 0.6 ? 1 : 0;
+      RS.drawRac(ctx, this._gunner, this.sx(this.cannonX - 2.3), this.sy(0.45), 0, s, this.t);
+      if (RS.img.siege) { var cf = this.state === 'flight' && this.flightT < 0.5 ? 14 : this.state === 'dwait' && this.dT > 0.5 ? 13 : 12, ch = 2.2; RS.drawSp(ctx, 'siege', cf, this.sx(this.cannonX), this.sy(ch / 2), ch * RS.spAspect('siege', cf) * s, ch * s); return; }
+    }
     // tubo (gira al apuntar) y base
     var rc = this.recoil * 0.35, px = this.sx(g.pivot.x - g.dir.x * rc), py = this.sy(g.pivot.y - g.dir.y * rc);
     var tr = RS.atlas[g.sheet][4 + lv], ti = RS.img[g.sheet];

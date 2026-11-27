@@ -89,6 +89,31 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     { id: 'rayo', name: 'Armadillo Rayo', rare: 3, world: 6, abil: 'dash', desc: 'Legendario. Al tocar: sale disparado como un relámpago.' },
     { id: 'fantasma', name: 'Fantasma', rare: 3, world: 6, abil: 'ghost', desc: 'Legendario. Al tocar: atraviesa paredes durante un instante.' },
   ];
+  // expansión: 12 armadillos nuevos (sprites arm2_*)
+  RS.ARMS.push(
+    { id: 'pegote', name: 'Pegote', rare: 0, world: 7, abil: 'stick', desc: 'Al tocar: se vuelve pegajoso, se queda pegado a la pieza que toca y la arrastra hacia abajo.' },
+    { id: 'tornado', name: 'Tornado', rare: 1, world: 8, abil: 'tornado', desc: 'Al tocar: gira y crea un remolino que levanta las piezas ligeras.' },
+    { id: 'burbuja', name: 'Burbuja', rare: 0, world: 7, abil: 'bubble', desc: 'Al tocar: se mete en una burbuja y vuela recto sin caer.' },
+    { id: 'katana', name: 'Katana', rare: 1, world: 9, abil: 'cut', desc: 'Al tocar: atraviesa cortando madera, hielo y cristal en línea recta.' },
+    { id: 'magma', name: 'Magma', rare: 1, world: 10, abil: 'magma', desc: 'Al tocar: estalla en lava que quema la madera cercana.' },
+    { id: 'espejo', name: 'Espejo', rare: 2, world: 11, abil: 'mirror', desc: 'Al tocar: crea un clon que vuela a su lado.' },
+    { id: 'plomo', name: 'Plomo', rare: 0, world: 9, abil: 'lead', desc: 'Al tocar: se vuelve superpesado y cae en vertical aplastando.' },
+    { id: 'cohete', name: 'Cohete', rare: 1, world: 8, abil: 'rocket', desc: 'Al tocar: sale propulsado hacia donde tocas.' },
+    { id: 'liana', name: 'Liana', rare: 1, world: 10, abil: 'vine', desc: 'Al tocar: lanza lianas que tiran de las piezas cercanas hacia él.' },
+    { id: 'cristal', name: 'Cristal', rare: 2, world: 11, abil: 'shard', desc: 'Al tocar: estalla en esquirlas que rompen el hielo y el cristal.' },
+    { id: 'astral', name: 'Astral', rare: 3, world: 12, abil: 'astral', desc: 'Legendario. Al tocar: las piezas cercanas flotan sin gravedad un momento.' },
+    { id: 'rey', name: 'Rey Armadillo', rare: 3, world: 12, abil: 'royal', desc: 'Legendario. Al tocar: hace llover mini armadillos sobre la fortaleza.' }
+  );
+  // sprite de un armadillo: f = fotograma de animación (0..7) o 'ball'
+  RS.armSprite = function (a, f) {
+    if (a < 12) return f === 'ball' ? ['arm_master', 12 + a] : f === 'abil' ? ['arm_abil', a] : ['arm_anim' + Math.floor(a / 3), (a % 3) * 8 + f];
+    var b = a - 12;
+    if (f === 'ball') return ['arm2_master', 12 + b];
+    if (f === 'abil') return ['arm2_abil', b];
+    var sh = 'arm2_anim' + Math.floor(b / 3);
+    if (RS.atlas && RS.atlas[sh]) return [sh, (b % 3) * 8 + f];
+    return (f === 4) ? ['arm2_master', 12 + b] : ['arm2_master', b];
+  };
   RS.RARE = ['Común', 'Raro', 'Épico', 'Legendario'];
 
   RS.WORLDS = [

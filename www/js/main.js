@@ -63,7 +63,7 @@
   function worldOpen(w) { if (S.unlockAll || w === 1) return true; return !!S.stars[(w - 1) + '-20']; }
   function levelOpen(w, n) { if (S.unlockAll) return true; if (!worldOpen(w)) return false; return n === 1 || !!S.stars[w + '-' + (n - 1)]; }
   function maxWorld() { var m = 1; for (var w = 2; w <= RS.WORLDS.length; w++) if (worldOpen(w)) m = w; return m; }
-  function armOpen(i) { var a = RS.ARMS[i]; if (S.unlockAll) return true; if (a.rare === 3) return !!S.stars['6-20']; return a.world <= maxWorld(); }
+  function armOpen(i) { var a = RS.ARMS[i]; if (S.unlockAll) return true; if (a.rare === 3) return !!S.stars[(i >= 12 ? '12' : '6') + '-20']; return a.world <= maxWorld(); }
   function matOpen(m) { return S.unlockAll || RS.MATS[m].lvl <= maxWorld(); }
 
   var SCREENS = {};
@@ -423,9 +423,9 @@
     RS.ARMS.forEach(function (a, i) {
       var open = armOpen(i), d = document.createElement('div'); d.className = 'arm' + (open ? '' : ' locked');
       var c = document.createElement('canvas'); c.width = 160; c.height = 160;
-      var sh = 'arm_anim' + Math.floor(i / 3), idx = (i % 3) * 8; var asp = RS.spAspect(sh, idx); RS.drawSp(c.getContext('2d'), sh, idx, 80, 80, asp > 1 ? 150 : 150 * asp, asp > 1 ? 150 / asp : 150);
+      var aspr = RS.armSprite(i, 0), sh = aspr[0], idx = aspr[1]; var asp = RS.spAspect(sh, idx); RS.drawSp(c.getContext('2d'), sh, idx, 80, 80, asp > 1 ? 150 : 150 * asp, asp > 1 ? 150 / asp : 150);
       d.appendChild(c);
-      d.insertAdjacentHTML('beforeend', '<b>' + a.name + '</b><span class="rr r' + a.rare + '">' + RS.RARE[a.rare] + '</span><span class="d">' + (open ? a.desc : (a.rare === 3 ? 'Vence al jefe final' : 'Se desbloquea en el mundo ' + a.world)) + '</span>');
+      d.insertAdjacentHTML('beforeend', '<b>' + a.name + '</b><span class="rr r' + a.rare + '">' + RS.RARE[a.rare] + '</span><span class="d">' + (open ? a.desc : (a.rare === 3 ? (i >= 12 ? 'Vence al Rey Mapache (12-20)' : 'Vence al jefe del mundo 6') : 'Se desbloquea en el mundo ' + a.world)) + '</span>');
       g.appendChild(d);
     });
   };

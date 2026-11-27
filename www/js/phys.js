@@ -92,7 +92,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     b.createFixture(pl.Box(w / 2 * 0.9, h / 2 * 0.95), { density: T.dens * (r.boss ? 1.6 : 1), friction: 0.8, restitution: 0.05 });
     if (T.fly && !r.boss) b.setGravityScale(0);
     var hp = r.boss ? 420 + 30 * (r.w || 1) : T.hp;
-    var ud = { rac: true, idx: i, t: r.t, T: T, boss: !!r.boss, w: w, h: h, hp: hp, hp0: hp, x0: r.x, y0: r.y + h / 2, ko: false, body: b, flying: !!T.fly && !r.boss, shield: false, helmet: false, koT: 0 };
+    var ud = { rac: true, idx: i, t: r.t, T: T, boss: !!r.boss, bi: r.boss ? ((r.w || 1) - 1) % 12 : 0, w: w, h: h, hp: hp, hp0: hp, x0: r.x, y0: r.y + h / 2, ko: false, body: b, flying: !!T.fly && !r.boss, shield: false, helmet: false, koT: 0 };
     b.setUserData(ud); this.racs.push(ud);
   };
   Phys.prototype.racsLeft = function () { return this.racs.filter(function (r) { return !r.ko; }).length; };
@@ -147,6 +147,8 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
       this.events.push({ t: 'spring', x: other.body.getPosition().x, y: other.body.getPosition().y });
     }
     if (ball.ghostT > 0) { c.setEnabled(false); return; }
+    if (ball.cutT > 0 && [0, 2, 4].indexOf(other.m) >= 0) { c.setEnabled(false); if (!other.drilled) { other.drilled = true; this.damage(other, 999, other.body.getPosition()); } return; }
+    if (ball.stickT > 0 && !ball.stuck && !other.body.isStatic()) { ball.stuck = other; var om = other.body.getMass(); other.body.applyLinearImpulse(V(0, -12 * om), other.body.getPosition(), true); this.damage(other, 40, other.body.getPosition()); }
     if (ball.drillT > 0 && [0, 1, 2, 4].indexOf(other.m) >= 0) {
       c.setEnabled(false);
       if (!other.drilled) { other.drilled = true; this.damage(other, other.m === 1 ? 160 : 999, other.body.getPosition()); }
@@ -217,7 +219,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     u.r = r;
   };
 
-  Phys.prototype.ability = function (u) {
+  Phys.prototype.ability = function (u, tgt) {
     if (!u || u.used || u.dead) return null;
     u.used = true;
     var b = u.body, v = b.getLinearVelocity(), p = b.getPosition(), sp = v.length(), self = this;
@@ -246,6 +248,34 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
       case 'meteor': this.setRadius(u, RS.PHYS.ballR * 1.15, RS.PHYS.ballDens * 3); b.setLinearVelocity(V(v.x * 1.4, v.y * 1.4)); u.mult = 2.2; u.fire = true; break;
       case 'dash': var n = sp || 1; u.dashT = 0.4; u.dashV = V(v.x / n * 40, v.y / n * 40); u.mult = 1.8; break;
       case 'ghost': u.ghostT = 0.75; break;
+      case 'stick': u.stickT = 2.5; u.mult = 1.3; break;
+      case 'tornado':
+        this.blocks.forEach(function (bl) { if (bl.dead || bl.body.isStatic()) return; var q = bl.body.getPosition(), dx = q.x - p.x, dy = q.y - p.y, d = Math.hypot(dx, dy); if (d < 4.5) { var m = bl.body.getMass(), k = (1 - d / 4.5) * Math.min(1, 4 / (m + 0.5)); bl.body.applyLinearImpulse(V(-dy * 2 * m * k, (9 + Math.random() * 4) * m * k), q, true); bl.body.applyAngularImpulse(m * 2 * k, true); } });
+        this.racs.forEach(function (r) { if (r.ko) return; var q = r.body.getPosition(); if (Math.hypot(q.x - p.x, q.y - p.y) < 4.5) r.body.applyLinearImpulse(V(0, 7 * r.body.getMass()), q, true); });
+        break;
+      case 'bubble': b.setGravityScale(0); u.bubbleT = 1.8; var n0 = sp || 1; b.setLinearVelocity(V(v.x / n0 * Math.max(sp, 14), v.y / n0 * Math.max(sp, 14) * 0.3)); break;
+      case 'cut': u.cutT = 1.0; u.mult = 1.5; b.setLinearVelocity(V(v.x * 1.25, v.y * 1.25)); break;
+      case 'magma':
+        this.explode(p.x, p.y, 2.6, 90, 14);
+        this.blocks.forEach(function (bl) { if (bl.dead || RS.MATS[bl.m].id !== 'madera') return; var q = bl.body.getPosition(); if (Math.hypot(q.x - p.x, q.y - p.y) < 4.2) self.damage(bl, 999, q); });
+        u.dead = true; this.dead.push(b); break;
+      case 'mirror': var cl = this.launch(u.arm, V(p.x, p.y + 1.2), Math.atan2(v.y, v.x), 1, { child: true }); cl.used = true; cl.body.setLinearVelocity(V(v.x, v.y)); break;
+      case 'lead': this.setRadius(u, RS.PHYS.ballR, RS.PHYS.ballDens * 6); b.setLinearVelocity(V(v.x * 0.15, -22)); u.mult = 2.4; break;
+      case 'rocket': var tx = tgt ? tgt.x - p.x : v.x, ty = tgt ? tgt.y - p.y : v.y, tn = Math.hypot(tx, ty) || 1; u.dashT = 0.45; u.dashV = V(tx / tn * 30, ty / tn * 30); u.mult = 1.7; break;
+      case 'vine':
+        this.blocks.forEach(function (bl) { if (bl.dead || bl.body.isStatic()) return; var q = bl.body.getPosition(), dx = p.x - q.x, dy = p.y - q.y, d = Math.hypot(dx, dy); if (d < 5 && d > 0.3) { var m = bl.body.getMass(); bl.body.applyLinearImpulse(V(dx / d * 7 * m, dy / d * 5 * m), q, true); } });
+        this.racs.forEach(function (r) { if (r.ko) return; var q = r.body.getPosition(), dx = p.x - q.x, d = Math.hypot(dx, p.y - q.y); if (d < 5) r.body.applyLinearImpulse(V(dx / (d + 0.1) * 6 * r.body.getMass(), 2 * r.body.getMass()), q, true); });
+        break;
+      case 'shard':
+        this.blocks.forEach(function (bl) { if (bl.dead) return; var q = bl.body.getPosition(), d = Math.hypot(q.x - p.x, q.y - p.y), id = RS.MATS[bl.m].id; if (d < 4) self.damage(bl, (id === 'hielo' || id === 'cristal' ? 400 : 45) * (1 - d / 5), q); });
+        this.explode(p.x, p.y, 2.2, 30, 10); u.dead = true; this.dead.push(b); break;
+      case 'astral':
+        var fl = this.floaters = [];
+        this.blocks.concat(this.racs).forEach(function (bl) { if (bl.dead || bl.ko || bl.body.isStatic()) return; var q = bl.body.getPosition(); if (Math.hypot(q.x - p.x, q.y - p.y) < 5.5) { bl.body.setGravityScale(-0.25); fl.push(bl); } });
+        this.floatT = 1.6; break;
+      case 'royal':
+        for (var k = 0; k < 5; k++) { var mb = this.launch(u.arm, V(p.x - 1.6 + k * 0.8, p.y + 3), -Math.PI / 2, 0.4, { r: 0.3, child: true }); mb.used = true; mb.mult = 1.4; }
+        break;
     }
     this.events.push({ t: 'ability', kind: kind, x: p.x, y: p.y, u: u });
     return kind;
@@ -275,6 +305,9 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
       if (u.ghostT > 0) u.ghostT -= dt;
       if (u.drillT > 0) u.drillT -= dt;
       if (u.dashT > 0) { u.dashT -= dt; b.setLinearVelocity(u.dashV); }
+      if (u.cutT > 0) u.cutT -= dt;
+      if (u.bubbleT > 0) { u.bubbleT -= dt; if (u.bubbleT <= 0) b.setGravityScale(1); }
+      if (u.stuck && u.stickT > 0) { u.stickT -= dt; if (!u.stuck.dead) { var sq = u.stuck.body.getPosition(); b.setLinearVelocity(V((sq.x - b.getPosition().x) * 6, (sq.y - b.getPosition().y) * 6)); u.stuck.body.applyForceToCenter(V(0, -40 * u.stuck.body.getMass()), true); } }
       if (u.magT > 0) {
         u.magT -= dt; var p = b.getPosition();
         self.blocks.forEach(function (bl) {
@@ -289,6 +322,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
       if (pos.y < -8 || pos.x > 140 || pos.x < -40) { u.dead = true; self.dead.push(b); }
     });
     this.stepTraps(dt);
+    if (this.floatT > 0) { this.floatT -= dt; if (this.floatT <= 0) (this.floaters || []).forEach(function (bl) { if (bl.body) bl.body.setGravityScale(bl.flying ? 0 : 1); }); }
     var W = this.wind;
     if (W) this.balls.forEach(function (u) { if (!u.dead) u.body.applyForceToCenter(V(W * u.body.getMass(), 0), true); });
     this.racs.forEach(function (r) {
