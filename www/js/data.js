@@ -23,7 +23,7 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     { id: 'muelle', name: 'Muelle', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'spring', mat: 3, sprite: ['traps', 0], anim: [0, 1, 2], cost: 5, desc: 'En el suelo rebota al armadillo hacia arriba y atrás. Colgado de una pared (toca en alto junto a ella) lo rebota de lado.' },
     { id: 'ventilador', name: 'Ventilador', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'fan', faceRight: true, mat: 3, sprite: ['traps', 3], anim: [3, 4, 5], cost: 6, desc: 'Sopla hacia el cañón y frena a los armadillos que se acercan. Va sobre el suelo o encima de una pieza.' },
     { id: 'torreta', name: 'Torreta', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'turret', faceRight: true, mat: 3, sprite: ['traps', 9], anim: [9, 10, 11], cost: 8, desc: 'Dispara a los armadillos en vuelo (3 disparos). Va sobre el suelo o encima de una pieza.' },
-    { id: 'escudo', name: 'Escudo burbuja', w: 2, h: 2, kind: 'circle', r: 1, cat: 'trap', trap: 'shield', mat: 4, sprite: ['traps', 12], static: true, sensor: true, cost: 7, desc: 'Burbuja de 2×2: ponla sobre una gema. El primer armadillo que entra rebota hacia fuera y la burbuja se rompe.' },
+    { id: 'escudo', name: 'Escudo burbuja', w: 2, h: 2, kind: 'circle', r: 1, cat: 'trap', trap: 'shield', mat: 4, sprite: ['shield', 0], static: true, sensor: true, cost: 7, desc: 'Burbuja de 2×2: ponla sobre una gema. El primer armadillo que entra rebota hacia fuera y la burbuja se rompe.' },
     { id: 'gemafalsa', name: 'Gema trampa', w: 1, h: 1, kind: 'circle', r: 0.42, cat: 'trap', trap: 'decoy', mat: 4, sprite: ['traps', 14], cost: 5, desc: 'Parece una gema… y explota lanzando lejos al armadillo.' },
     // --- explosivos (solo en la campaña, ayudan al atacante) ---
     { id: 'barril', name: 'Barril explosivo', w: 1, h: 1, kind: 'box', cat: 'boom', mat: 0, sprite: ['items', 0], explosive: 1, cost: 2 },
@@ -34,6 +34,34 @@ var RS = typeof RS !== 'undefined' ? RS : {};
   // tejados grandes (al final para no cambiar los índices de las piezas ya guardadas); usan el dibujo del tejado
   RS.SHAPES.push({ id: 'tejado3', name: 'Tejado grande', noTop: true, w: 3, h: 1.5, kind: 'poly', spr: 5, cost3: 3, pts: [[-1.5, -0.75], [1.5, -0.75], [0, 0.75]] });
   RS.SHAPES.push({ id: 'tejado4', name: 'Tejado enorme', noTop: true, w: 4, h: 2, kind: 'poly', spr: 5, cost3: 4, pts: [[-2, -1], [2, -1], [0, 1]] });
+  // --- actualización 0.7 (al final para no cambiar índices guardados) ---
+  // formas nuevas: hoja blk_new (madera y piedra); los demás materiales usan el dibujo de piedra teñido
+  var Q = [[0.5, -0.5]]; for (var qa = 0; qa <= 6; qa++) { var an = Math.PI / 2 + qa * Math.PI / 12; Q.push([0.5 + Math.cos(an), -0.5 + Math.sin(an)]); }
+  RS.SHAPES.push(
+    { id: 'almena', name: 'Almena', w: 2, h: 1, kind: 'battle', nspr: 0, desc: 'Remate con dientes para lo alto de un muro: los mapaches tiradores se cubren detrás.' },
+    { id: 'arcog', name: 'Arco grande', w: 3, h: 1.5, kind: 'arch', nspr: 1, cost3: 3, desc: 'Puerta de 3: deja un hueco grande debajo para esconder una gema.' },
+    { id: 'rampa', name: 'Rampa', noTop: true, w: 2, h: 1, kind: 'poly', nspr: 2, pts: [[-1, -0.5], [1, -0.5], [1, 0.5]], desc: 'Desvía hacia arriba al armadillo que llega rodando por el suelo.' },
+    { id: 'escalon', name: 'Escalón', w: 2, h: 2, kind: 'step', nspr: 3, cost3: 3, desc: 'Dos alturas en una pieza: puedes apoyar cosas en el peldaño bajo y en el alto.' },
+    { id: 'cuarto', name: 'Cuarto de círculo', noTop: true, w: 1, h: 1, kind: 'poly', nspr: 4, pts: Q, desc: 'Esquina redondeada: los armadillos resbalan por encima sin golpear de lleno.' },
+    { id: 'ruedag', name: 'Rueda grande', noTop: true, w: 2, h: 2, kind: 'circle', r: 1, nspr: 5, roller: 1.6, cost3: 3, desc: 'Rodillo aplastante: si cae o sale rodando, aplasta con mucha fuerza lo que pilla.' },
+    { id: 'trapecio', name: 'Trapecio', w: 2, h: 1, kind: 'poly', nspr: 6, pts: [[-1, -0.5], [1, -0.5], [0.6, 0.5], [-0.6, 0.5]], desc: 'Base ancha que no vuelca: ideal de cimiento para torres.' },
+    { id: 'columna', name: 'Columna', w: 3, h: 1, kind: 'box', nspr: 7, desc: 'Columna maciza de 3: de pie (⟳) sostiene pisos altos sin doblarse.' },
+    // refuerzos nuevos (hoja refs2)
+    { id: 'cadena', name: 'Cadena', w: 3, h: 0.5, kind: 'tie', cat: 'ref', mat: 3, sprite: ['refs2', 0], tie: 160, cost: 3, desc: 'Toca entre dos paredes: las ata para que no se separen ni vuelquen. El armadillo pasa por debajo.' },
+    { id: 'cuerda', name: 'Cuerda', w: 3, h: 0.5, kind: 'tie', cat: 'ref', mat: 0, sprite: ['refs2', 1], tie: 60, cost: 1, desc: 'Como la cadena, más barata, pero se rompe con un tirón fuerte.' },
+    { id: 'vigat', name: 'Viga en T', w: 4, h: 1, kind: 'T', cat: 'ref', mat: 3, sprite: ['refs2', 2], stretch: true, rot90: true, cost: 5, desc: 'Viga de hierro muy rígida: cubre huecos de 4 y aguanta mucho peso encima.' },
+    { id: 'pilar', name: 'Pilar de hierro', w: 2.5, h: 1, kind: 'box', cat: 'ref', mat: 3, sprite: ['refs2', 3], stretch: true, rot90: true, cost: 4, desc: 'Columna maciza de hierro: ponla de pie (⟳) para sostener pisos altos.' },
+    { id: 'blindaje', name: 'Blindaje', w: 2, h: 1, kind: 'box', cat: 'ref', mat: 7, sprite: ['refs2', 4], brokenFr: 5, stretch: true, rot90: true, weld: true, armor: true, cost: 5, desc: 'Plancha de acero soldada: el primer golpe solo la abolla. Ponla de pie (⟳) delante de una pared.' },
+    { id: 'abrazadera', name: 'Abrazadera', w: 1, h: 1, kind: 'box', cat: 'ref', mat: 3, sprite: ['refs2', 6], weld: true, dens: 0.25, cost: 1, desc: 'Grapa barata: ponla encima de dos bloques juntos y quedan soldados entre sí.' },
+    { id: 'cuna', name: 'Cuña', noTop: true, w: 2, h: 1, kind: 'poly', pts: [[-1, -0.5], [1, -0.5], [1, 0.5]], cat: 'ref', mat: 3, sprite: ['refs2', 7], static: true, weld: true, ground: true, cost: 3, desc: 'Toca junto a una pared, en el suelo: la calza para que no resbale ni vuelque.' },
+    // trampas nuevas (hoja traps2), todas sobre superficie horizontal
+    { id: 'iman', name: 'Imán', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'magnet', mat: 3, sprite: ['traps2', 0], anim: [0, 1, 2], cost: 7, desc: 'Tira hacia abajo de los armadillos que pasan cerca y les tuerce el tiro. Va sobre el suelo o encima de una pieza.' },
+    { id: 'pinchos', name: 'Pinchos', noTop: true, w: 2, h: 1, kind: 'box', fixH: 0.6, cat: 'trap', trap: 'spikes', mat: 3, sprite: ['traps2', 5], anim: [3, 4, 5], cost: 6, desc: 'Salen cuando se acerca un armadillo y lo frenan en seco: pierde la fuerza del golpe.' },
+    { id: 'brea', name: 'Charco de brea', noTop: true, w: 2, h: 1, kind: 'box', fixH: 0.45, cat: 'trap', trap: 'tar', mat: 3, sprite: ['traps2', 6], anim: [6, 7, 8], cost: 6, desc: 'El armadillo que cae dentro se queda pegado y deja de rebotar. Déjalo sin nada encima.' },
+    { id: 'muro', name: 'Muro emergente', noTop: true, w: 2, h: 1.5, kind: 'box', fixH: 0.45, cat: 'trap', trap: 'wall', mat: 1, sprite: ['traps2', 11], anim: [9, 10, 11], cost: 8, desc: 'Escondido en una trampilla: cuando un armadillo se acerca, sube un muro de piedra que lo bloquea. Necesita el hueco libre encima.' }
+  );
+  RS.SHAPES[RS.SHAPES.findIndex(function (s) { return s.id === 'rueda'; })].roller = 1;
+  RS.SHAPES[RS.SHAPES.findIndex(function (s) { return s.id === 'rueda'; })].desc = 'Rodillo: si cae o sale rodando, aplasta a los mapaches que pilla.';
   RS.SHAPE_IDX = {}; RS.SHAPES.forEach(function (s, i) { RS.SHAPE_IDX[s.id] = i; });
 
   // Mapaches bandidos. act = lo que hacen entre disparo y disparo. sheet/row = dónde irá su sprite (hojas RS90-95)
@@ -95,6 +123,8 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     { id: 'hierro', name: 'Hierro', dens: 2.5, hp: 230, fr: 0.5, rest: 0.05, cost: 3, luz: 6, vol: 3, sfx: 'metal', debris: 15, metal: true, lvl: 3 },
     { id: 'cristal', name: 'Cristal reforzado', dens: 0.8, hp: 95, fr: 0.3, rest: 0.15, cost: 4, luz: 4, vol: 2, sfx: 'glass', debris: 16, lvl: 4 },
     { id: 'obsidiana', name: 'Obsidiana', dens: 3.0, hp: 320, fr: 0.6, rest: 0.03, cost: 5, luz: 2, vol: 0, sfx: 'stone', debris: 17, lvl: 5 },
+    { id: 'goma', name: 'Goma', dens: 1.1, hp: 90, fr: 0.9, rest: 0.85, cost: 2, luz: 3, vol: 1, sfx: 'wood', debris: 12, fragile: 0.6, lvl: 3, desc: 'Los armadillos rebotan en ella y apenas le hacen daño.' },
+    { id: 'acero', name: 'Acero', dens: 2.8, hp: 380, fr: 0.5, rest: 0.05, cost: 4, luz: 6, vol: 3, sfx: 'metal', debris: 15, metal: true, lvl: 8, desc: 'Más duro que el hierro.' },
   ];
 
   // Armadillos: hoja de animación = floor(i/3), fila = i%3

@@ -496,7 +496,7 @@
     tl.appendChild(sep());
     function ib(ico, title, sel, fn) { var b = tb(ico, sel, fn, 'ico'); b.title = title; tl.appendChild(b); }
     ib('↶', 'Deshacer', false, function () { B.undo(); updB(); });
-    ib('⟳', 'Girar', false, function () { B.rot = (B.rot + 1) % 4; B.autoOrient = false; if (B.carry) { var cp = B.curPiece(), cs = RS.SHAPES[B.carry.s]; if (cs.sprite && !cs.trap) { var o = B.rot; B.carry.rot = cs.kind === 'brace' ? 0 : (o >= 2 ? 4 : 0); B.carry.flip = o % 2 === 1; } else if (cs.trap === 'fan') B.carry.rot = B.carry.rot ? 0 : 1; else if (cs.kind !== 'circle' && !cs.trap) B.carry.rot = ((B.carry.rot || 0) + 1) % (cs.kind === 'box' ? 4 : 2); } buildUI(); });
+    ib('⟳', 'Girar', false, function () { B.rot = (B.rot + 1) % 4; B.autoOrient = false; if (B.carry) { var cp = B.curPiece(), cs = RS.SHAPES[B.carry.s]; if (cs.tie) {} else if (cs.rot90) B.carry.rot = B.rot % 2; else if (cs.sprite && !cs.trap) { var o = B.rot; B.carry.rot = cs.kind === 'brace' ? 0 : (o >= 2 ? 4 : 0); B.carry.flip = o % 2 === 1; } else if (cs.trap === 'fan') B.carry.rot = B.carry.rot ? 0 : 1; else if (cs.kind !== 'circle' && !cs.trap) B.carry.rot = ((B.carry.rot || 0) + 1) % (cs.kind === 'box' ? 4 : 2); } buildUI(); });
     ib('⇋', 'Voltear', B.flip, function () { B.flip = !B.flip; B.autoOrient = false; if (B.carry) B.carry.flip = !B.carry.flip; buildUI(); });
     ib('🌊', 'Fondo de mar (limpio)', B.sea && !B.blue, function () { B.sea = !B.sea; if (B.sea) B.blue = false; S.buildSea = B.sea; S.blueprint = B.blue; persist(); buildUI(); });
     ib('📐', 'Modo plano (pantalla azul)', B.blue, function () { B.blue = !B.blue; S.blueprint = B.blue; persist(); buildUI(); });
@@ -673,7 +673,7 @@
   RS.Audio.vol.music = S.vol.music; RS.Audio.vol.sfx = S.vol.sfx;
   fetch('img/atlas.json').then(function (r) { return r.json(); }).then(function (atlas) {
     RS.atlas = atlas;
-    var core = ['items', 'fx', 'pow', 'traps', 'siege', 'clouds', 'arm_master', 'arm_abil', 'arm2_master', 'arm2_abil', 'blk_bandido0', 'blk_bandido1', 'blk_bandido2'].concat(RS.clanSheets(S.clan));
+    var core = ['items', 'fx', 'pow', 'traps', 'siege', 'clouds', 'arm_master', 'arm_abil', 'arm2_master', 'arm2_abil', 'blk_bandido0', 'blk_bandido1', 'blk_bandido2', 'blk_bandido3', 'blk_new', 'shield', 'traps2', 'refs2'].concat(RS.clanSheets(S.clan));
     var names = core.filter(function (n) { return atlas[n]; }), done = 0;
     return Promise.all(names.map(function (n) { return RS.loadImg(n).then(function () { done++; $('loadfill').style.width = Math.round(done / names.length * 100) + '%'; }); }));
   }).then(function () { return document.fonts ? document.fonts.load('20px Lilita') : null; }).then(function () {

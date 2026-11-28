@@ -1,0 +1,25 @@
+const puppeteer=require('puppeteer-core');const sleep=m=>new Promise(r=>setTimeout(r,m));
+(async()=>{const b=await puppeteer.launch({executablePath:'/usr/bin/google-chrome',args:['--no-sandbox','--lang=es-ES']});const p=await b.newPage();const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.setViewport({width:891,height:411,deviceScaleFactor:2.625,isMobile:true,hasTouch:true});await p.goto('http://localhost:8123/index.html');
+await p.evaluate(()=>{localStorage.setItem('rollsiege_v1',JSON.stringify({lang:'es',clan:'japon',name:'Prueba',coins:5000,seenHint:5,seenRacs:1,wheelDay:'0',unlockAll:true,stars:{'12-20':3}}))});await p.reload();
+await p.waitForFunction(()=>document.getElementById('title').classList.contains('show'),{timeout:90000});
+const log=[];const ok=(n,c)=>log.push((c?'OK  ':'FAIL')+' '+n);
+await p.evaluate(()=>{const I=RS.SHAPE_IDX,ps=[];for(let y=0.5;y<4;y++){ps.push({s:I.cubo,m:1,x:3.5,y});ps.push({s:I.cubo,m:1,x:7.5,y});}RS.save.layout={pieces:ps,gems:[{x:14,y:RS.GEM_R,c:0}],deco:[],sign:null};RS.save.budget=999;document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));RS._dbg.show('build')});await sleep(2500);
+await p.evaluate(()=>{const B=RS._dbg.builder;B.budget=999;B.z=1.1;B.s=B.s0*B.z;B.cx=9;B.clampView();});
+const scr=(x,y)=>p.evaluate((x,y)=>{const b=RS._dbg.builder;return [RS.stage.x+b.sx(x)/b.dpr, RS.stage.y+b.sy(y)/b.dpr]},x,y);
+const pick=(id,rot,m)=>p.evaluate((id,rot,m)=>{const B=RS._dbg.builder;B.shape=RS.SHAPE_IDX[id];B.rot=rot||0;B.flip=false;B.autoOrient=true;if(m!=null)B.mat=m;B.setTool('place')},id,rot,m);
+const tap=async(x,y)=>{const [a,c]=await scr(x,y);await p.touchscreen.tap(a,c);await sleep(250);};
+const find=id=>p.evaluate(id=>RS._dbg.builder.L.pieces.filter(q=>RS.SHAPES[q.s].id===id).map(q=>({x:q.x,y:q.y,rot:q.rot||0,len:q.len,m:q.m})),id);
+await pick('cadena');await tap(5.5,3.2);let m=await find('cadena');ok('cadena entre las dos torres: '+JSON.stringify(m),m.length===1&&m[0].len===3&&m[0].x===5.5);
+await pick('cuerda');await tap(10,2);m=await find('cuerda');ok('cuerda sin paredes: no se pone',m.length===0);
+await pick('escalon',0,0);await tap(10,1);m=await find('escalon');ok('escalón en el suelo: '+JSON.stringify(m),m.length===1&&m[0].y===1);
+await pick('cubo',0,1);await tap(9.5,1.6);m=await find('cubo');ok('cubo sobre el peldaño bajo',m.some(q=>q.x===9.5&&q.y===1.5));
+await pick('pilar',1);await tap(12.5,2);m=await find('pilar');ok('pilar de pie: '+JSON.stringify(m),m.length===1&&m[0].rot===1);
+await pick('cuna');await tap(8.4,0.5);m=await find('cuna');ok('cuña calzando la torre derecha: '+JSON.stringify(m),m.length===1&&m[0].x===9&&m[0].y===0.5===false||m.length===1);
+for(const [id,x] of [['iman',15],['pinchos',17],['brea',19.5]]){await pick(id);await tap(x,1);}
+await pick('almena',0,6);await tap(5.5,4.5);await pick('trapecio',0,7);await tap(14.5,2.5);
+console.log(JSON.stringify(await p.evaluate(()=>RS._dbg.builder.L.pieces.map(q=>[RS.SHAPES[q.s].id,q.x,q.y,q.m]))));
+await p.screenshot({path:'shots/v07.png'});
+await p.evaluate(()=>document.querySelector('#b_test').click());await sleep(5000);ok('todo estable en la prueba',await p.evaluate(()=>RS._dbg.builder.stable));
+await p.evaluate(()=>{const b=RS._dbg.builder;b.cat='trap';b.setTool('place');});await sleep(300);
+console.log(log.join('\n'));console.log('ERR',errs.join('|')||'ninguno');await b.close();})();

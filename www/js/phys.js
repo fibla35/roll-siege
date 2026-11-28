@@ -10,20 +10,21 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
   // partes sólidas de una pieza (el arco es hueco por debajo) como cajas en coordenadas del mundo
   RS.pieceParts = function (p) {
     var s = RS.SHAPES[p.s];
-    if (s.kind === 'arch' && !p.rot) return [[p.x - 1, p.y - 0.5, p.x - 0.55, p.y + 0.1], [p.x + 0.55, p.y - 0.5, p.x + 1, p.y + 0.1], [p.x - 1, p.y + 0.1, p.x + 1, p.y + 0.5]];
+    if (s.kind === 'arch' && !p.rot) { var W = s.w / 2, H = s.h, lw = 0.45 * W; return [[p.x - W, p.y - 0.5 * H, p.x - W + lw, p.y + 0.1 * H], [p.x + W - lw, p.y - 0.5 * H, p.x + W, p.y + 0.1 * H], [p.x - W, p.y + 0.1 * H, p.x + W, p.y + 0.5 * H]]; }
+    if (s.kind === 'step' && !p.rot) return [[p.x - 1, p.y - 1, p.x + 1, p.y], p.flip ? [p.x - 1, p.y, p.x, p.y + 1] : [p.x, p.y, p.x + 1, p.y + 1]];
     var a = RS.pieceAABB(p); return [[a.x0, a.y0, a.x1, a.y1]];
   };
   RS.gemHits = function (p, g, r) { r = r == null ? RS.GEM_R - 0.03 : r; return RS.pieceParts(p).some(function (b) { var dx = Math.max(b[0] - g.x, 0, g.x - b[2]), dy = Math.max(b[1] - g.y, 0, g.y - b[3]); return dx * dx + dy * dy < r * r; }); };
   RS.ANG = [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4, Math.PI, -Math.PI / 2]; // 4 = boca abajo, 5 = girado a la derecha (trampas colgadas en una pared a su izquierda); 4 = boca abajo (triángulos en esquinas altas)
   RS.rotAng = function (p) { return RS.ANG[p.rot || 0] || 0; };
   function pieceSize(p) {
-    var s = RS.SHAPES[p.s], r = p.rot || 0;
-    if (r === 2 || r === 3) { var d = (s.w + s.h) * Math.SQRT1_2; return { w: Math.round(d * 2) / 2, h: Math.round(d * 2) / 2, diag: true }; }
-    return (r % 2) ? { w: s.h, h: s.w } : { w: s.w, h: s.h };
+    var s = RS.SHAPES[p.s], r = p.rot || 0, sw = p.len || s.w; // len: cadenas y cuerdas, que miden lo que el hueco
+    if (r === 2 || r === 3) { var d = (sw + s.h) * Math.SQRT1_2; return { w: Math.round(d * 2) / 2, h: Math.round(d * 2) / 2, diag: true }; }
+    return (r % 2) ? { w: s.h, h: sw } : { w: sw, h: s.h };
   }
   // rectángulo girado real (para no chocar con la caja grande de una diagonal)
   RS.pieceOBB = function (p) {
-    var s = RS.SHAPES[p.s], a = RS.rotAng(p), c = Math.cos(a), n = Math.sin(a), hw = s.w / 2 - 0.02, hh = s.h / 2 - 0.02;
+    var s = RS.SHAPES[p.s], a = RS.rotAng(p), c = Math.cos(a), n = Math.sin(a), hw = (p.len || s.w) / 2 - 0.02, hh = s.h / 2 - 0.02;
     return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(function (q) { return [p.x + q[0] * c - q[1] * n, p.y + q[0] * n + q[1] * c]; });
   };
   RS.obbOverlap = function (A, B) {
@@ -39,7 +40,8 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
   RS.pieceAABB = function (p) { var z = pieceSize(p); return { x0: p.x - z.w / 2, x1: p.x + z.w / 2, y0: p.y - z.h / 2, y1: p.y + z.h / 2 }; };
 
   function addShapeFixtures(body, s, flip, fd) {
-    if (s.kind === 'box') body.createFixture(pl.Box(s.w / 2, s.h / 2), fd);
+    if (s.fixH) body.createFixture(pl.Box(s.w / 2 * 0.96, s.fixH / 2, V(0, -s.h / 2 + s.fixH / 2), 0), fd); // trampas bajas: solo la base es sólida
+    else if (s.kind === 'box') body.createFixture(pl.Box(s.w / 2, s.h / 2), fd);
     else if (s.kind === 'circle') body.createFixture(pl.Circle(s.r), fd);
     else if (s.kind === 'poly') body.createFixture(pl.Polygon(s.pts.map(function (q) { return V(flip ? -q[0] : q[0], q[1]); })), fd);
     else if (s.kind === 'L') {
@@ -47,9 +49,19 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
       body.createFixture(pl.Box(0.5, 0.16, V(0, -0.34), 0), fd);
     } else if (s.kind === 'brace') body.createFixture(pl.Box(1.32, 0.14, V(0, 0), flip ? -Math.PI / 4 : Math.PI / 4), fd);
     else if (s.kind === 'arch') {
-      body.createFixture(pl.Box(0.225, 0.3, V(-0.775, -0.2), 0), fd);
-      body.createFixture(pl.Box(0.225, 0.3, V(0.775, -0.2), 0), fd);
-      body.createFixture(pl.Box(1, 0.2, V(0, 0.3), 0), fd);
+      var W = s.w / 2, H = s.h;
+      body.createFixture(pl.Box(0.225 * W, 0.3 * H, V(-0.775 * W, -0.2 * H), 0), fd);
+      body.createFixture(pl.Box(0.225 * W, 0.3 * H, V(0.775 * W, -0.2 * H), 0), fd);
+      body.createFixture(pl.Box(W, 0.2 * H, V(0, 0.3 * H), 0), fd);
+    } else if (s.kind === 'battle') {
+      body.createFixture(pl.Box(1, 0.3, V(0, -0.2), 0), fd);
+      [-0.8, 0, 0.8].forEach(function (tx) { body.createFixture(pl.Box(0.2, 0.2, V(tx, 0.3), 0), fd); });
+    } else if (s.kind === 'step') {
+      body.createFixture(pl.Box(1, 0.5, V(0, -0.5), 0), fd);
+      body.createFixture(pl.Box(0.5, 0.5, V(flip ? -0.5 : 0.5, 0.5), 0), fd);
+    } else if (s.kind === 'T') {
+      body.createFixture(pl.Box(s.w / 2, 0.2, V(0, 0.3), 0), fd);
+      body.createFixture(pl.Box(0.3, 0.3, V(0, -0.2), 0), fd);
     }
   }
 
@@ -57,7 +69,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     opts = opts || {};
     var self = this;
     this.world = new pl.World({ gravity: V(0, RS.PHYS.gravity) });
-    this.blocks = []; this.gems = []; this.balls = []; this.events = []; this.dead = []; this.joints = []; this.traps = []; this.shells = []; this.booms = [];
+    this.blocks = []; this.ties = []; this.gems = []; this.balls = []; this.events = []; this.dead = []; this.joints = []; this.traps = []; this.shells = []; this.booms = [];
     this.time = 0; this.score = 0; this.destroyed = 0; this.totalValue = 0; this.destroyedValue = 0;
     this.noDamage = !!opts.noDamage;
     var ground = this.world.createBody({ type: 'static' });
@@ -76,6 +88,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     this.wind = layout.wind || 0;
     this.ballGrav = layout.ballGrav || 1; // Modo Montaña: el mortero lanza en una parábola más alta
     if (!opts.noWeld) this.makeWelds(layout.pieces || []);
+    this.makeTies();
     this.world.on('post-solve', function (c, imp) { self.onPostSolve(c, imp); });
     this.world.on('pre-solve', function (c) { self.onPreSolve(c); });
   }
@@ -84,10 +97,11 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
   RS.pieceMat = function (p) { var s = RS.SHAPES[p.s]; return s.mat != null ? s.mat : p.m; };
   Phys.prototype.addPiece = function (p, i) {
     var s = RS.SHAPES[p.s], mi = RS.pieceMat(p), m = RS.MATS[mi];
+    if (s.tie) { this.ties.push({ p: p, s: s }); return null; } // cadenas y cuerdas: no son un cuerpo, atan a sus vecinas
     var b = this.world.createBody({ type: s.static ? 'static' : 'dynamic', position: V(p.x, p.y), angle: RS.rotAng(p) });
     addShapeFixtures(b, s, p.flip, { density: m.dens * (s.dens || 1), friction: m.fr, restitution: m.rest, isSensor: !!s.sensor });
     var hp = m.hp * (s.static ? 1.6 : 1) * (s.explosive ? 0.25 : 1);
-    var ud = { block: true, p: p, idx: i, s: p.s, m: mi, hp: hp, hp0: hp, fragile: m.fragile || 1, frozen: false, body: b, trap: s.trap || null, cd: 0, shots: 0, fr: 0, explosive: s.explosive || 0 };
+    var ud = { block: true, p: p, idx: i, s: p.s, m: mi, hp: hp, hp0: hp, fragile: m.fragile || 1, frozen: false, body: b, trap: s.trap || null, cd: 0, shots: 0, fr: 0, explosive: s.explosive || 0, armor: !!s.armor, roller: s.roller || 0 };
     if (s.trap) this.traps.push(ud);
     b.setUserData(ud); this.blocks.push(ud); this.totalValue += 100 * m.cost;
     return ud;
@@ -145,6 +159,26 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     }
   };
 
+  // cadenas y cuerdas: una cuerda (RopeJoint) entre las dos piezas que tocan sus extremos
+  Phys.prototype.makeTies = function () {
+    var self = this;
+    this.ties.forEach(function (T) {
+      var p = T.p, a = RS.pieceAABB(p), vert = (p.rot || 0) % 2 === 1, ends = vert ? [[p.x, a.y0 - 0.05], [p.x, a.y1 + 0.05]] : [[a.x0 - 0.05, p.y], [a.x1 + 0.05, p.y]];
+      var bodies = ends.map(function (e) {
+        var hit = null; self.blocks.forEach(function (u) { if (hit || u.dead) return; var q = RS.pieceAABB(u.p); if (e[0] >= q.x0 - 0.01 && e[0] <= q.x1 + 0.01 && e[1] >= q.y0 - 0.01 && e[1] <= q.y1 + 0.01) hit = u; });
+        return hit;
+      });
+      if (!bodies[0] || !bodies[1] || bodies[0] === bodies[1]) { T.broken = true; return; }
+      var A = V(ends[0][0] + (vert ? 0 : 0.05), ends[0][1] + (vert ? 0.05 : 0)), B = V(ends[1][0] - (vert ? 0 : 0.05), ends[1][1] - (vert ? 0.05 : 0));
+      var jd = pl.RopeJoint({ maxLength: Math.hypot(B.x - A.x, B.y - A.y) + 0.02, localAnchorA: bodies[0].body.getLocalPoint(A), localAnchorB: bodies[1].body.getLocalPoint(B) }, bodies[0].body, bodies[1].body);
+      T.j = self.world.createJoint(jd); T.A = bodies[0]; T.B = bodies[1]; T.lim = T.s.tie;
+    });
+  };
+  Phys.prototype.tieEnds = function (T) {
+    if (!T.j || T.broken) return null;
+    return [T.j.getAnchorA(), T.j.getAnchorB()];
+  };
+
   Phys.prototype.onPreSolve = function (c) {
     var A = c.getFixtureA().getBody(), Bd = c.getFixtureB().getBody();
     var wm = c.getWorldManifold();
@@ -163,6 +197,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
       else ball.springV = V(-Math.max(6, Math.abs(bv.x) * 0.85), Math.max(7, Math.abs(bv.y) * 0.5 + 6));
       this.events.push({ t: 'spring', x: other.body.getPosition().x, y: other.body.getPosition().y });
     }
+    if (other.trap === 'spikes' && !other.dead && ball.ghostT <= 0) { ball.stopV = V(0, 0); ball.mult = 0.15; other.up = 1; if (!other.hitOnce) { other.hitOnce = true; this.events.push({ t: 'spikes', x: other.body.getPosition().x, y: other.body.getPosition().y }); } }
     if (ball.ghostT > 0) { c.setEnabled(false); return; }
     if (ball.cutT > 0 && [0, 2, 4].indexOf(other.m) >= 0) { c.setEnabled(false); if (!other.drilled) { other.drilled = true; this.damage(other, 999, other.body.getPosition()); } return; }
     if (ball.stickT > 0 && !ball.stuck && !other.body.isStatic()) { ball.stuck = other; var om = other.body.getMass(); other.body.applyLinearImpulse(V(0, -12 * om), other.body.getPosition(), true); this.damage(other, 40, other.body.getPosition()); }
@@ -183,7 +218,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
       var me = pair[0], other = pair[1];
       if (!me) return;
       if (me.gem && !me.freed && n > 2.2) self.freeGem(me);
-      if (me.rac) { var vn = c.__vn || 0, mlt = (other && other.ball) ? other.mult * 1.6 : 1; if (n > 0.5 && vn > 0.9) { var q = me.body.getPosition(); self.hurtRac(me, (n - 0.5) * 9 * mlt, pt.x < q.x); } return; }
+      if (me.rac) { var vn = c.__vn || 0, mlt = (other && other.ball) ? other.mult * 1.6 : (other && other.roller ? 2.5 * other.roller : 1); if (n > 0.5 && vn > 0.9) { var q = me.body.getPosition(); self.hurtRac(me, (n - 0.5) * 9 * mlt, pt.x < q.x); } return; }
       if (!me.block) return;
       if (other && other.shell) return;
       var mult = (other && other.ball) ? other.mult : 1;
@@ -194,6 +229,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
 
   Phys.prototype.damage = function (u, dmg, pt) {
     if (u.dead) return;
+    if (u.armor && !u.dented && dmg > 6) { u.dented = true; dmg = Math.max(dmg * 0.2, u.hp - u.hp0 * 0.45); this.events.push({ t: 'hit', m: u.m, x: pt.x, y: pt.y, d: 30 }); } // el blindaje se abolla con el primer golpe
     var before = u.hp; u.hp -= dmg;
     if (before > u.hp0 * 0.5 && u.hp <= u.hp0 * 0.5 && u.hp > 0) this.events.push({ t: 'crack', m: u.m, u: u, x: pt.x, y: pt.y });
     else if (dmg > 6) this.events.push({ t: 'hit', m: u.m, x: pt.x, y: pt.y, d: dmg });
@@ -353,7 +389,12 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     this.world.step(dt, 8, 3);
     this.time += dt;
     while (this.booms.length) { var bm = this.booms.shift(); this.explode(bm.x, bm.y, 2.6 + bm.k, 140 * bm.k, 22 * bm.k); }
-    this.balls.forEach(function (u) { if (u.springV) { u.body.setLinearVelocity(u.springV); u.springV = null; u.mult = 1; } });
+    this.balls.forEach(function (u) { if (u.springV) { u.body.setLinearVelocity(u.springV); u.springV = null; u.mult = 1; } if (u.stopV) { u.body.setLinearVelocity(u.stopV); u.body.setAngularVelocity(0); u.stopV = null; } });
+    // cadenas y cuerdas: se rompen con un tirón muy fuerte o si muere una de sus piezas
+    this.ties.forEach(function (T) {
+      if (!T.j || T.broken) return;
+      if (T.A.dead || T.B.dead || T.j.getReactionForce(1 / dt).length() > T.lim * 60) { if (!T.A.dead && !T.B.dead) self.world.destroyJoint(T.j); T.broken = true; T.j = null; self.events.push({ t: 'weldbreak' }); }
+    });
     this.shells = this.shells.filter(function (sh) { sh.t += dt; if (sh.t > 2.5 || sh.body.getPosition().y < -2) { self.dead.push(sh.body); return false; } return true; });
     // romper soldaduras sobrecargadas
     this.joints = this.joints.filter(function (J) {
@@ -379,7 +420,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
   Phys.prototype.stepTraps = function (dt) {
     var self = this, balls = this.balls.filter(function (u) { return !u.dead; });
     this.traps.forEach(function (t) {
-      if (t.dead) return; t.cd -= dt; t.fr = Math.max(0, t.fr - dt);
+      if (t.dead) return; t.cd -= dt; t.fr = Math.max(0, t.fr - dt); if (t.up) t.upT = (t.upT || 0) + dt;
       var tp = t.body.getPosition(), dir = t.p.flip ? 1 : -1;
       balls.forEach(function (u) {
         var b = u.body, q = b.getPosition(), dx = q.x - tp.x, dy = q.y - tp.y, d = Math.hypot(dx, dy);
@@ -397,9 +438,20 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
           self.shells.push({ body: sb, t: 0 }); t.shots++; t.cd = 1.1; t.fr = 0.4;
           self.events.push({ t: 'turret', x: tp.x + ax / n * 0.8, y: tp.y + 0.2 + ay / n * 0.8, a: Math.atan2(ay, ax) });
         } else if (t.trap === 'shield' && !t.popped && d < 1.5) {
-          t.popped = true; t.dead = true; self.dead.push(t.body); // la burbuja se gasta: frena en seco y se rompe
+          t.popped = true; // la burbuja se gasta y se rompe; el generador apagado se queda
           var ex = dx / (d || 1), ey = dy / (d || 1); b.setLinearVelocity(V(ex * 9 - 2, Math.max(3, ey * 6 + 4))); u.mult = 0.3; // rebota hacia fuera
           self.events.push({ t: 'shield', x: tp.x, y: tp.y });
+        } else if (t.trap === 'magnet' && (t.energy == null ? (t.energy = 1.6) : t.energy) > 0 && d < 5 && d > 0.4) {
+          var km = (1 - d / 5); t.energy -= dt; t.fr = 0.3;
+          b.applyForceToCenter(V(-dx / d * 40 * b.getMass() * km, (-dy / d * 40 - 25) * b.getMass() * km), true); // tira del armadillo hacia el imán y hacia abajo
+        } else if (t.trap === 'spikes' && !t.up && d < 3.2) { t.up = 1; t.upT = 0;
+        } else if (t.trap === 'tar' && Math.abs(dx) < 1 && dy > -0.3 && dy < 0.35 + u.r) {
+          var tv = b.getLinearVelocity(); if (!u.tarred) { u.tarred = true; t.fr = 0.6; self.events.push({ t: 'tar', x: tp.x, y: tp.y }); }
+          b.setLinearVelocity(V(tv.x * 0.2, Math.min(0, tv.y) * 0.2)); b.setAngularVelocity(0); u.mult = 0.1; b.getFixtureList().setRestitution(0); // se queda pegado
+        } else if (t.trap === 'wall' && !t.up && dx < 0 && dx > -7 && Math.abs(dy) < 5) {
+          t.up = 1; t.upT = 0; var bd = t.body; bd.destroyFixture(bd.getFixtureList()); var sh = RS.SHAPES[t.s], M = RS.MATS[t.m];
+          bd.createFixture(pl.Box(0.8, sh.h / 2, V(0, 0), 0), { density: M.dens * 5, friction: 0.9, restitution: M.rest }); bd.setAwake(true); // sube el muro (pesado: aguanta el golpe)
+          self.events.push({ t: 'wallup', x: tp.x, y: tp.y });
         } else if (t.trap === 'decoy' && d < 1.25) {
           t.dead = true; self.dead.push(t.body);
           balls.forEach(function (o) { var r = o.body.getPosition(), ex = r.x - tp.x, ey = r.y - tp.y, e = Math.hypot(ex, ey) || 1; if (e < 4) o.body.setLinearVelocity(V(-Math.abs(ex / e) * 14 - 4, Math.abs(ey / e) * 6 + 7)); o.mult = 0.5; });

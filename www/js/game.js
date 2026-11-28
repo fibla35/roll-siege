@@ -24,21 +24,47 @@
     ctx.restore();
   };
   RS.spAspect = function (sheet, idx) { var r = RS.atlas[sheet] && RS.atlas[sheet][idx]; return r ? r[2] / r[3] : 1; };
+  // tinte de los materiales que no tienen dibujo propio en la hoja de formas nuevas (se parte del de piedra)
+  var MATF = { hielo: 'sepia(1) saturate(2.2) hue-rotate(160deg) brightness(1.25)', hierro: 'grayscale(1) brightness(0.8) contrast(1.25)', cristal: 'sepia(1) saturate(3) hue-rotate(125deg) brightness(1.2)',
+    obsidiana: 'grayscale(1) brightness(0.38) contrast(1.5)', goma: 'sepia(1) saturate(5) hue-rotate(-45deg) brightness(0.95)', acero: 'grayscale(1) brightness(1.05) contrast(1.35)' };
   RS.blockSprite = function (style, m, s, broken) {
-    if (RS.SHAPES[s] && RS.SHAPES[s].spr != null) s = RS.SHAPES[s].spr;
-    var half = m % 2, row = (s < 4 ? 0 : 1) + (broken ? 2 : 0), col = (s % 4) + half * 4;
-    return { sheet: 'blk_' + style + Math.floor(m / 2), idx: row * 8 + col };
+    var S = RS.SHAPES[s];
+    if (S && S.nspr != null) { var n = S.nspr; return { sheet: 'blk_new', idx: ((n < 4 ? 0 : 1) + (broken ? 2 : 0)) * 8 + (n % 4) + (m === 0 ? 0 : 4), filter: m > 1 ? MATF[RS.MATS[m].id] : null }; }
+    if (S && S.spr != null) s = S.spr;
+    var half = m % 2, row = (s < 4 ? 0 : 1) + (broken ? 2 : 0), col = (s % 4) + half * 4, sh = 'blk_' + style + Math.floor(m / 2);
+    if (!(RS.atlas && RS.atlas[sh])) sh = 'blk_bandido' + Math.floor(m / 2); // goma y acero: solo en la hoja general
+    return { sheet: sh, idx: row * 8 + col, filter: m === 7 && s === 7 ? 'grayscale(1) brightness(1.1)' : null };
+  };
+  RS.drawTie = function (ctx, s, A, B, alpha) { // cadena o cuerda estirada entre dos puntos de pantalla
+    var sh = s.sprite[0], idx = s.sprite[1], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy), h = L / RS.spAspect(sh, idx);
+    h = Math.min(h, L * 0.3);
+    ctx.save(); ctx.translate((A.x + B.x) / 2, (A.y + B.y) / 2); ctx.rotate(Math.atan2(dy, dx)); if (alpha != null) ctx.globalAlpha = alpha;
+    RS.drawSp(ctx, sh, idx, 0, 0, L * 1.06, h); ctx.restore();
+  };
+  // fotograma de cada trampa según su estado
+  RS.trapFrame = function (u, t) {
+    var an = RS.SHAPES[u.s].anim;
+    if (u.trap === 'shield') return u.popped ? 4 : 0;
+    if (!an) return null;
+    if (u.trap === 'fan') return an[u.fr > 0 ? 1 + Math.floor(t * 14) % 2 : 0];
+    if (u.trap === 'magnet') return an[u.fr > 0 ? 1 + Math.floor(t * 12) % 2 : 0];
+    if (u.trap === 'spikes' || u.trap === 'wall') return an[!u.up ? 0 : (u.upT || 0) < 0.12 ? 1 : 2];
+    if (u.trap === 'tar') return an[u.fr > 0 ? 2 : (t + u.p.x) % 2.4 < 0.5 ? 1 : 0];
+    return an[u.fr > 0.25 ? 1 : u.fr > 0 ? 2 : 0];
   };
   // pieza alargada: extremos sin deformar y tramo central estirado; piezas especiales con su sprite
   var tmp = null;
   RS.drawBlock = function (ctx, style, p, broken, x, y, ang, sc, alpha, tint, fr) {
     var s = RS.SHAPES[p.s];
     if (s.cage) { RS.drawCage(ctx, x, y, ang, sc, broken); return; }
+    if (s.tie) { var L2 = (p.len || s.w) * sc / 2, c0 = Math.cos(-ang), s0 = Math.sin(-ang); RS.drawTie(ctx, s, { x: x - L2 * c0, y: y + L2 * s0 }, { x: x + L2 * c0, y: y - L2 * s0 }, alpha); return; }
     if (s.sprite) {
+      if (broken && s.brokenFr != null && fr == null) { fr = s.brokenFr; broken = false; }
       var sh = s.sprite[0], idx = fr != null ? fr : s.sprite[1], a = RS.spAspect(sh, idx);
       var bw = s.w * sc, bh = s.h * sc, w = bw, h = w / a;
       if (h > bh) { h = bh; w = h * a; }
-      if (s.kind === 'brace' || s.kind === 'poly') { w = bw; h = bh; }
+      if (s.kind === 'brace' || s.kind === 'poly' || s.stretch) { w = bw; h = bh; }
+      if (s.trap === 'shield' && alpha == null && idx !== 4) alpha = 0.82; // la burbuja deja ver la gema
       ctx.save(); ctx.translate(x, y); ctx.rotate(ang); if (s.faceRight ? !p.flip : p.flip) ctx.scale(-1, 1); // ventilador y torreta: dibujados mirando a la derecha, actúan hacia el cañón
       if (alpha != null) ctx.globalAlpha = alpha;
       if (broken) ctx.filter = 'brightness(0.75) saturate(0.7)';
@@ -50,11 +76,12 @@
     var im = RS.img[sp.sheet], r = RS.atlas[sp.sheet] && RS.atlas[sp.sheet][sp.idx];
     if (!im || !r) return;
     var w2 = s.w * sc, h2 = s.h * sc, c = ctx, ox = 0, oy = 0;
+    if (sp.filter && !tint) tint = 'rgba(0,0,0,0)'; // lienzo aparte para poder aplicar el filtro
     if (tint) { // se pinta en un lienzo aparte para que el color no manche el fondo
       tmp = tmp || document.createElement('canvas');
       tmp.width = Math.ceil(w2) + 2; tmp.height = Math.ceil(h2) + 2; c = tmp.getContext('2d'); ox = tmp.width / 2; oy = tmp.height / 2;
     } else { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); if (p.flip) ctx.scale(-1, 1); if (alpha != null) ctx.globalAlpha = alpha; }
-    c.save(); c.translate(ox, oy);
+    c.save(); c.translate(ox, oy); if (sp.filter) c.filter = sp.filter;
     if (s.slice) {
       var cap = Math.min(r[3] * 0.9, r[2] * 0.3), dc = h2 * cap / r[3];
       c.drawImage(im, r[0], r[1], cap, r[3], -w2 / 2, -h2 / 2, dc, h2);
@@ -572,7 +599,10 @@
       } else if (e.t === 'spring') { RS.Audio.sfx('bounce', 0.8); self.pops.push({ x: e.x, y: e.y + 1, t: 0, txt: '¡BOING!' });
       } else if (e.t === 'wind') { self.parts.push({ fx: 'fx', fr: [4, 5, 6, 7], x: e.x, y: e.y, w: 0.6, vx: e.dir * 9, vy: 0, life: 0.5, t: 0, fade: true });
       } else if (e.t === 'turret') { RS.Audio.sfx('cannon', 0.5); self.parts.push({ fx: 'pow', fr: [6, 7, 8, 9, 10, 11], x: e.x, y: e.y, w: 1.2, life: 0.3, t: 0, ang: -e.a });
-      } else if (e.t === 'shield') { RS.Audio.sfx('glass_break', 0.8); self.parts.push({ fx: 'fx', fr: [12, 13, 14, 15], x: e.x, y: e.y, w: 4.6, life: 0.5, t: 0, fade: true }); self.pops.push({ x: e.x, y: e.y + 1.5, t: 0, txt: '¡Escudo!' });
+      } else if (e.t === 'shield') { RS.Audio.sfx('glass_break', 0.8); self.parts.push({ fx: 'shield', fr: [1, 2, 3, 3], x: e.x, y: e.y, w: 2.1, life: 0.55, t: 0 }); self.pops.push({ x: e.x, y: e.y + 1.5, t: 0, txt: '¡Escudo!' });
+      } else if (e.t === 'spikes') { RS.Audio.sfx('metal_hit', 0.8); self.pops.push({ x: e.x, y: e.y + 1, t: 0, txt: '¡Pinchos!' });
+      } else if (e.t === 'tar') { RS.Audio.sfx('pour', 0.7); self.pops.push({ x: e.x, y: e.y + 1, t: 0, txt: '¡Pegado!' });
+      } else if (e.t === 'wallup') { RS.Audio.sfx('stone_hit', 0.9); self.shake = 6 * self.dpr; self.pops.push({ x: e.x, y: e.y + 1.8, t: 0, txt: '¡Muro!' });
       } else if (e.t === 'explode') {
         self.parts.push({ fx: 'fx', fr: [0, 1, 2, 3], x: e.x, y: e.y, w: 5.5, life: 0.6, t: 0 }); self.shake = 14 * self.dpr; RS.vib(60);
       } else if (e.t === 'weldbreak') RS.Audio.sfx('metal_hit', 0.4);
@@ -620,10 +650,11 @@
     // bloques
     this.phys.blocks.forEach(function (u) {
       if (u.dead) return; var b = u.body, p = b.getPosition();
-      var an = RS.SHAPES[u.s].anim, fr = an ? an[u.trap === 'fan' ? (u.fr > 0 ? 1 + Math.floor(self.t * 14) % 2 : 0) : u.fr > 0.25 ? 1 : u.fr > 0 ? 2 : 0] : null;
+      var fr = u.trap ? RS.trapFrame(u, self.t) : null;
       RS.drawBlock(ctx, self.style, u.p, u.hp < u.hp0 * 0.5, self.sx(p.x), self.sy(p.y), -b.getAngle(), s, null, u.frozen ? 'rgba(120,200,255,0.35)' : (u.p.tint || null), fr);
-      if (u.trap === 'shield' && !u.popped) { ctx.save(); ctx.globalAlpha = 0.22 + 0.06 * Math.sin(self.t * 3); ctx.fillStyle = '#7fe8ff'; ctx.strokeStyle = '#bff6ff'; ctx.lineWidth = 3 * self.dpr; ctx.beginPath(); ctx.arc(self.sx(p.x), self.sy(p.y), 2.3 * s, 0, TAU); ctx.fill(); ctx.globalAlpha = 0.6; ctx.stroke(); ctx.restore(); }
     });
+    // cadenas y cuerdas
+    this.phys.ties.forEach(function (T) { var e = self.phys.tieEnds(T); if (e) RS.drawTie(ctx, T.s, { x: self.sx(e[0].x), y: self.sy(e[0].y) }, { x: self.sx(e[1].x), y: self.sy(e[1].y) }); });
     // gemas
     this.phys.gems.forEach(function (g) {
       if (g.freed) return; var p = g.body.getPosition(), pulse = 1 + Math.sin(self.t * 4 + g.idx) * 0.05;

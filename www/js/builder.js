@@ -142,20 +142,22 @@
     var r = s.kind === 'circle' ? 0 : s.trap ? 0 : s.sprite ? (s.kind === 'brace' ? 0 : (o >= 2 ? 4 : 0)) : this.rot;
     if (s.sprite && !s.trap) flip = (o % 2 === 1) !== !!this.flip; // ⟳ recorre las 4 esquinas: ⌞ ⌟ ⌝ ⌜
     if (!s.sprite && r >= 2 && s.kind !== 'box') r = r % 2;
+    if (s.rot90) { r = this.rot % 2; flip = this.flip; } // vigas, pilares y blindaje: tumbados o de pie
+    if (s.tie) { r = 0; flip = false; }
     return { s: this.shape, m: s.mat != null ? s.mat : this.mat, rot: r, flip: flip };
   };
   // la pieza cae hasta apoyarse en lo que tenga debajo (o en el suelo)
   Builder.prototype.dropY = function (x0, x1, yTap, h) {
     var floor = 0;
     this.L.pieces.forEach(function (q) {
-      if ((RS.SHAPES[q.s].noTop && !q.rot) || RS.SHAPES[q.s].sensor) return; // no se puede apoyar nada en un pico ni en una burbuja
-      var a = RS.pieceAABB(q);
-      if (Math.min(x1, a.x1) - Math.max(x0, a.x0) > 0.05 && a.y1 <= yTap + 0.35 && a.y1 > floor) floor = a.y1;
+      if ((RS.SHAPES[q.s].noTop && !q.rot) || RS.SHAPES[q.s].sensor || RS.SHAPES[q.s].tie) return; // no se puede apoyar nada en un pico, una burbuja o una cadena
+      RS.pieceParts(q).forEach(function (a) { // por partes: el peldaño bajo del escalón también sirve de apoyo
+        if (Math.min(x1, a[2]) - Math.max(x0, a[0]) > 0.05 && a[3] <= yTap + 0.35 && a[3] > floor) floor = a[3]; });
     });
     return floor + h / 2;
   };
   // refuerzos y triángulos se orientan solos según dónde toques: esquina con el suelo, esquina con el techo o junto a una pared
-  var AUTO = { tri: 'tri', escuadra: 'L', puntal: 'brace', puntalh: 'brace', contrafuerte: 'butt' };
+  var AUTO = { tri: 'tri', escuadra: 'L', puntal: 'brace', puntalh: 'brace', contrafuerte: 'butt', cuna: 'butt' };
   Builder.prototype.cornerSnap = function (p, x, y) {
     var s = RS.SHAPES[p.s], kind = AUTO[s.id]; if (!kind) return null;
     var sz = s.w, Lw = null, Rw = null, self = this;
@@ -168,7 +170,7 @@
     var px = side === 'L' ? Lw.x1 + sz / 2 : Rw.x0 - sz / 2, ceil = null;
     if (kind !== 'butt') this.L.pieces.forEach(function (q) { var a = RS.pieceAABB(q); if (a.x0 < px + sz / 2 - 0.05 && a.x1 > px - sz / 2 + 0.05 && a.y0 > y - 0.2 && a.y0 - y < sz * 0.5 + 0.9 && a.y0 >= sz && (!ceil || a.y0 < ceil.y0)) ceil = a; });
     var q = Object.assign({}, p, { rot: 0, flip: false }), up = !!ceil;
-    if (up) q.y = ceil.y0 - sz / 2; else q.y = this.dropY(px - sz / 2, px + sz / 2, y - sz / 2, sz) ;
+    var hz = s.h; if (up) q.y = ceil.y0 - hz / 2; else q.y = this.dropY(px - sz / 2, px + sz / 2, y - hz / 2, hz);
     q.x = px;
     if (kind === 'tri' || kind === 'L') { if (up) { q.rot = 4; q.flip = side === 'L'; } else q.flip = side === 'R'; }
     else if (kind === 'brace') q.flip = up ? side === 'R' : side === 'L';
@@ -189,7 +191,16 @@
     var q = Object.assign({}, p, { x: side === 'R' ? Rw.x0 - z.w / 2 : Lw.x1 + z.w / 2, y: yc, weld: true, wall: true, rot: side === 'R' ? 1 : 5, flip: s.faceRight ? side === 'R' : false });
     return this.why(q, 0) ? null : q;
   };
+  // cadenas y cuerdas: se tienden entre las dos paredes más cercanas a la altura donde tocas
+  Builder.prototype.tieSnap = function (p, x, y) {
+    var Lw = null, Rw = null, yc = Math.round((y - 0.25) * 2) / 2 + 0.25;
+    this.L.pieces.forEach(function (q) { var sq = RS.SHAPES[q.s]; if (sq.tie || sq.sensor) return; var a = RS.pieceAABB(q); if (a.y0 > yc - 0.2 || a.y1 < yc + 0.2) return;
+      if (a.x1 <= x + 0.05 && (!Lw || a.x1 > Lw.x1)) Lw = a; if (a.x0 >= x - 0.05 && (!Rw || a.x0 < Rw.x0)) Rw = a; });
+    if (!Lw || !Rw) return null; var len = Rw.x0 - Lw.x1; if (len < 0.99 || len > 6.01) return null;
+    return { x: (Lw.x1 + Rw.x0) / 2, y: yc, len: len, rot: 0, flip: false };
+  };
   Builder.prototype.snapPiece = function (p, x, y) {
+    if (RS.SHAPES[p.s].tie) { var ts = this.tieSnap(p, x, y); if (ts) { Object.assign(p, ts); delete p.noTie; } else { p.noTie = true; p.len = null; p.x = Math.round(x * 2) / 2; p.y = Math.max(0.25, Math.round(y * 2) / 2); } return p; }
     if (p.wall) { delete p.wall; p.weld = false; p.rot = 0; p.flip = false; }
     var cs = this.cornerSnap(p, x, y) || this.wallSnap(p, x, y); if (cs) { Object.assign(p, cs); return p; }
     if (p.corner) { p.rot = 0; p.weld = false; p.corner = false; p.flip = false; }
@@ -201,8 +212,10 @@
     var a = RS.pieceAABB(p), s = RS.SHAPES[p.s];
     if (a.x0 < -0.01 || a.x1 > GW + 0.01 || a.y1 > GH + 0.01) return 'Fuera de la zona de construcción';
     if (s.ground && a.y0 > 0.01) return 'Esta pieza solo va en el suelo';
-    var oa = RS.pieceOBB(p), diagA = p.rot === 2 || p.rot === 3;
-    var hit = this.L.pieces.some(function (q) { var b = RS.pieceAABB(q); var box = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.02 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.02; if (!box) return false; if (!diagA && q.rot !== 2 && q.rot !== 3) return true; return RS.obbOverlap(oa, RS.pieceOBB(q)); });
+    if (s.tie && (p.noTie || !p.len)) return 'Ponla entre dos paredes (de 1 a 6 de hueco)';
+    var oa = RS.pieceOBB(p), diagA = p.rot === 2 || p.rot === 3, pa = RS.pieceParts(p);
+    function ov(u, v) { return Math.min(u[2], v[2]) - Math.max(u[0], v[0]) > 0.02 && Math.min(u[3], v[3]) - Math.max(u[1], v[1]) > 0.02; }
+    var hit = this.L.pieces.some(function (q) { var b = RS.pieceAABB(q); var box = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.02 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.02; if (!box) return false; if (!diagA && q.rot !== 2 && q.rot !== 3) { var pb = RS.pieceParts(q); return pa.some(function (u) { return pb.some(function (v) { return ov(u, v); }); }); } return RS.obbOverlap(oa, RS.pieceOBB(q)); });
     if (hit || (!RS.SHAPES[p.s].sensor && this.L.gems.some(function (g) { return RS.gemHits(p, g); }))) return 'No cabe ahí';
     if (this.cost() + (extraCost || 0) > this.budget) return 'Sin puntos de construcción';
     return null;
@@ -372,7 +385,7 @@
       S.P.blocks.forEach(function (u) {
         var d = u.dead ? 9 : Math.hypot(u.body.getPosition().x - u.p.x, u.body.getPosition().y - u.p.y) + Math.abs(u.body.getAngle() - RS.rotAng(u.p)) * 0.5;
         var lvl = d > 0.25 ? 2 : d > 0.06 ? 1 : 0; if (lvl === 2) bad++;
-        marks.push(lvl);
+        marks[u.idx] = lvl;
       });
       var gemsLost = S.P.gems.filter(function (g) { return g.freed; }).length;
       this.marks = marks; this.stable = bad === 0 && gemsLost === 0; this.sim = null;
