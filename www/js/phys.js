@@ -14,7 +14,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     var a = RS.pieceAABB(p); return [[a.x0, a.y0, a.x1, a.y1]];
   };
   RS.gemHits = function (p, g, r) { r = r == null ? RS.GEM_R - 0.03 : r; return RS.pieceParts(p).some(function (b) { var dx = Math.max(b[0] - g.x, 0, g.x - b[2]), dy = Math.max(b[1] - g.y, 0, g.y - b[3]); return dx * dx + dy * dy < r * r; }); };
-  RS.ANG = [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4, Math.PI]; // 4 = boca abajo (triángulos en esquinas altas)
+  RS.ANG = [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4, Math.PI, -Math.PI / 2]; // 4 = boca abajo, 5 = girado a la derecha (trampas colgadas en una pared a su izquierda); 4 = boca abajo (triángulos en esquinas altas)
   RS.rotAng = function (p) { return RS.ANG[p.rot || 0] || 0; };
   function pieceSize(p) {
     var s = RS.SHAPES[p.s], r = p.rot || 0;
@@ -85,7 +85,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
   Phys.prototype.addPiece = function (p, i) {
     var s = RS.SHAPES[p.s], mi = RS.pieceMat(p), m = RS.MATS[mi];
     var b = this.world.createBody({ type: s.static ? 'static' : 'dynamic', position: V(p.x, p.y), angle: RS.rotAng(p) });
-    addShapeFixtures(b, s, p.flip, { density: m.dens * (s.dens || 1), friction: m.fr, restitution: m.rest });
+    addShapeFixtures(b, s, p.flip, { density: m.dens * (s.dens || 1), friction: m.fr, restitution: m.rest, isSensor: !!s.sensor });
     var hp = m.hp * (s.static ? 1.6 : 1) * (s.explosive ? 0.25 : 1);
     var ud = { block: true, p: p, idx: i, s: p.s, m: mi, hp: hp, hp0: hp, fragile: m.fragile || 1, frozen: false, body: b, trap: s.trap || null, cd: 0, shots: 0, fr: 0, explosive: s.explosive || 0 };
     if (s.trap) this.traps.push(ud);
@@ -158,7 +158,9 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
     if (!ball || !other || !other.block) return;
     if (other.trap === 'spring' && !other.dead && other.cd <= 0 && ball.ghostT <= 0) {
       var bv = ball.body.getLinearVelocity();
-      other.cd = 0.6; other.fr = 0.5; ball.springV = V(-Math.max(6, Math.abs(bv.x) * 0.85), Math.max(7, Math.abs(bv.y) * 0.5 + 6));
+      other.cd = 0.6; other.fr = 0.5; var sr = other.p.rot || 0;
+      if (sr === 1 || sr === 5) ball.springV = V((sr === 1 ? -1 : 1) * Math.max(9, Math.abs(bv.x) * 0.95), Math.max(2.5, Math.abs(bv.y) * 0.3 + 2)); // en la pared: rebota de lado, lejos de la pared
+      else ball.springV = V(-Math.max(6, Math.abs(bv.x) * 0.85), Math.max(7, Math.abs(bv.y) * 0.5 + 6));
       this.events.push({ t: 'spring', x: other.body.getPosition().x, y: other.body.getPosition().y });
     }
     if (ball.ghostT > 0) { c.setEnabled(false); return; }
@@ -381,7 +383,9 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
       var tp = t.body.getPosition(), dir = t.p.flip ? 1 : -1;
       balls.forEach(function (u) {
         var b = u.body, q = b.getPosition(), dx = q.x - tp.x, dy = q.y - tp.y, d = Math.hypot(dx, dy);
-        if (t.trap === 'fan') {
+        if (t.trap === 'fan' && (t.p.rot === 1 || t.p.rot === 5)) { // colgado de una pared: sopla hacia arriba
+          if (dy > 0 && dy < 7 && Math.abs(dx) < 1.8) { var ku = 1 - dy / 7; b.applyForceToCenter(V(-8 * b.getMass() * ku, 55 * b.getMass() * ku), true); t.fr = 0.3; }
+        } else if (t.trap === 'fan') {
           var ahead = dx * dir;
           if (ahead > 0 && ahead < 7 && Math.abs(dy) < 1.8) { var k = 1 - ahead / 7; b.applyForceToCenter(V(dir * 45 * b.getMass() * k, 4 * b.getMass() * k), true); t.fr = 0.3; if (Math.random() < 0.3) self.events.push({ t: 'wind', x: tp.x + dir * (0.8 + Math.random() * ahead), y: tp.y + (Math.random() - 0.5), dir: dir }); }
         } else if (t.trap === 'turret' && t.shots < 3 && t.cd <= 0 && d < 10 && d > 1.2 && !u.child) {
@@ -392,8 +396,9 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
           sb.setLinearVelocity(V(ax / n * sp, ay / n * sp)); sb.setUserData({ shell: true });
           self.shells.push({ body: sb, t: 0 }); t.shots++; t.cd = 1.1; t.fr = 0.4;
           self.events.push({ t: 'turret', x: tp.x + ax / n * 0.8, y: tp.y + 0.2 + ay / n * 0.8, a: Math.atan2(ay, ax) });
-        } else if (t.trap === 'shield' && !t.popped && d < 2.3) {
-          t.popped = true; var v = b.getLinearVelocity(); b.setLinearVelocity(V(v.x * 0.2, v.y * 0.2)); u.mult = 0.6;
+        } else if (t.trap === 'shield' && !t.popped && d < 1.5) {
+          t.popped = true; t.dead = true; self.dead.push(t.body); // la burbuja se gasta: frena en seco y se rompe
+          var ex = dx / (d || 1), ey = dy / (d || 1); b.setLinearVelocity(V(ex * 9 - 2, Math.max(3, ey * 6 + 4))); u.mult = 0.3; // rebota hacia fuera
           self.events.push({ t: 'shield', x: tp.x, y: tp.y });
         } else if (t.trap === 'decoy' && d < 1.25) {
           t.dead = true; self.dead.push(t.body);

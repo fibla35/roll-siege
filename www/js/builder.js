@@ -7,7 +7,7 @@
   RS.buildBudget = function (S, maxWorld) { return Math.min(480, 160 + 25 * ((maxWorld || 1) - 1) + Math.floor((S.trophies || 0) / 4)); };
   RS.pieceCost = function (p) {
     var s = RS.SHAPES[p.s];
-    return (s.cost != null ? s.cost : RS.MATS[p.m].cost * (s.cost3 || (s.w * s.h >= 2 ? 2 : 1))) + (p.weld && !s.weld && !p.corner ? 1 : 0);
+    return (s.cost != null ? s.cost : RS.MATS[p.m].cost * (s.cost3 || (s.w * s.h >= 2 ? 2 : 1))) + (p.weld && !s.weld && !p.corner && !p.wall ? 1 : 0);
   };
   function I(id) { return RS.SHAPE_IDX[id]; }
   // plantillas: [forma, material (null = el elegido), x, y (centro, desde la esquina inferior izquierda), rot, flip, soldar]
@@ -138,14 +138,17 @@
   Builder.prototype.trapCount = function () { return this.L.pieces.filter(function (p) { return RS.SHAPES[p.s].trap; }).length; };
   Builder.prototype.curPiece = function () {
     var s = RS.SHAPES[this.shape];
-    var r = s.kind === 'circle' || s.trap ? 0 : s.sprite ? (s.kind === 'brace' ? 0 : (this.rot % 2 ? 4 : 0)) : this.rot; if (!s.sprite && r >= 2 && s.kind !== 'box') r = r % 2;
-    return { s: this.shape, m: s.mat != null ? s.mat : this.mat, rot: r, flip: this.flip };
+    var o = this.rot % 4, flip = this.flip;
+    var r = s.kind === 'circle' ? 0 : s.trap ? 0 : s.sprite ? (s.kind === 'brace' ? 0 : (o >= 2 ? 4 : 0)) : this.rot;
+    if (s.sprite && !s.trap) flip = (o % 2 === 1) !== !!this.flip; // ⟳ recorre las 4 esquinas: ⌞ ⌟ ⌝ ⌜
+    if (!s.sprite && r >= 2 && s.kind !== 'box') r = r % 2;
+    return { s: this.shape, m: s.mat != null ? s.mat : this.mat, rot: r, flip: flip };
   };
   // la pieza cae hasta apoyarse en lo que tenga debajo (o en el suelo)
   Builder.prototype.dropY = function (x0, x1, yTap, h) {
     var floor = 0;
     this.L.pieces.forEach(function (q) {
-      if (RS.SHAPES[q.s].noTop && !q.rot) return; // no se puede apoyar nada en un pico
+      if ((RS.SHAPES[q.s].noTop && !q.rot) || RS.SHAPES[q.s].sensor) return; // no se puede apoyar nada en un pico ni en una burbuja
       var a = RS.pieceAABB(q);
       if (Math.min(x1, a.x1) - Math.max(x0, a.x0) > 0.05 && a.y1 <= yTap + 0.35 && a.y1 > floor) floor = a.y1;
     });
@@ -170,11 +173,25 @@
     if (kind === 'tri' || kind === 'L') { if (up) { q.rot = 4; q.flip = side === 'L'; } else q.flip = side === 'R'; }
     else if (kind === 'brace') q.flip = up ? side === 'R' : side === 'L';
     else q.flip = side === 'L'; // contrafuerte: la cara vertical contra la pared
-    if (kind === 'tri' && up) { q.weld = true; q.corner = true; } else { delete q.corner; if (kind === 'tri') q.weld = false; }
+    if (this.autoOrient === false) { q.rot = p.rot; q.flip = p.flip; } // orientación elegida a mano: solo se ajusta la posición
+    if (kind === 'tri' && (q.rot === 4)) { q.weld = true; q.corner = true; } else { delete q.corner; if (kind === 'tri') q.weld = false; }
+    return this.why(q, 0) ? null : q;
+  };
+  // trampas en la pared: si tocas en el aire junto a una pared, se cuelgan de ella (soldadas, sin coste extra)
+  Builder.prototype.wallSnap = function (p, x, y) {
+    var s = RS.SHAPES[p.s]; if (s.trap !== 'spring') return null; // solo el muelle se cuelga de las paredes
+    var z = RS.pieceSize(p), floorY = this.dropY(x - z.w / 2, x + z.w / 2, y - z.h / 2, z.h); if (y - floorY < 0.6) return null; // cerca del suelo: se apoya normal
+    var Lw = null, Rw = null, yc = Math.round((y - z.h / 2) * 2) / 2 + z.h / 2;
+    this.L.pieces.forEach(function (q) { var a = RS.pieceAABB(q); if (RS.SHAPES[q.s].sensor || Math.min(a.y1, yc + z.h / 2) - Math.max(a.y0, yc - z.h / 2) < 0.45) return; // la pared puede ser de varias piezas
+      if (a.x0 >= x - 0.1 && a.x0 - x < 1.3 && (!Rw || a.x0 < Rw.x0)) Rw = a; if (a.x1 <= x + 0.1 && x - a.x1 < 1.3 && (!Lw || a.x1 > Lw.x1)) Lw = a; });
+    var side = Rw && (!Lw || Rw.x0 - x <= x - Lw.x1) ? 'R' : Lw ? 'L' : null; if (!side) return null;
+    // base contra la pared: girado 90° (pared a la derecha → rot 1; a la izquierda → rot 5); la parte activa hacia fuera o hacia arriba
+    var q = Object.assign({}, p, { x: side === 'R' ? Rw.x0 - z.w / 2 : Lw.x1 + z.w / 2, y: yc, weld: true, wall: true, rot: side === 'R' ? 1 : 5, flip: s.faceRight ? side === 'R' : false });
     return this.why(q, 0) ? null : q;
   };
   Builder.prototype.snapPiece = function (p, x, y) {
-    var cs = this.autoOrient !== false ? this.cornerSnap(p, x, y) : null; if (cs) { Object.assign(p, cs); return p; }
+    if (p.wall) { delete p.wall; p.weld = false; p.rot = 0; p.flip = false; }
+    var cs = this.cornerSnap(p, x, y) || this.wallSnap(p, x, y); if (cs) { Object.assign(p, cs); return p; }
     if (p.corner) { p.rot = 0; p.weld = false; p.corner = false; p.flip = false; }
     var z = RS.pieceSize(p), x0 = Math.round((x - z.w / 2) * 2) / 2;
     p.x = x0 + z.w / 2; p.y = this.dropY(x0, x0 + z.w, y - z.h / 2, z.h);
@@ -186,7 +203,7 @@
     if (s.ground && a.y0 > 0.01) return 'Esta pieza solo va en el suelo';
     var oa = RS.pieceOBB(p), diagA = p.rot === 2 || p.rot === 3;
     var hit = this.L.pieces.some(function (q) { var b = RS.pieceAABB(q); var box = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.02 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.02; if (!box) return false; if (!diagA && q.rot !== 2 && q.rot !== 3) return true; return RS.obbOverlap(oa, RS.pieceOBB(q)); });
-    if (hit || this.L.gems.some(function (g) { return RS.gemHits(p, g); })) return 'No cabe ahí';
+    if (hit || (!RS.SHAPES[p.s].sensor && this.L.gems.some(function (g) { return RS.gemHits(p, g); }))) return 'No cabe ahí';
     if (this.cost() + (extraCost || 0) > this.budget) return 'Sin puntos de construcción';
     return null;
   };
@@ -211,7 +228,7 @@
     this.L.pieces.forEach(function (q) { RS.pieceParts(q).forEach(function (b) { if (Math.min(gx + R * 0.8, b[2]) - Math.max(gx - R * 0.8, b[0]) > 0.02 && b[3] <= y + 0.35 && b[3] > floor) floor = b[3]; }); });
     return floor + R;
   };
-  Builder.prototype.gemBlocked = function (gx, gy, skip) { var g = { x: gx, y: gy }; return this.L.pieces.some(function (q) { return RS.gemHits(q, g); }) || this.L.gems.some(function (o) { return o !== skip && Math.hypot(o.x - gx, o.y - gy) < RS.GEM_R * 2; }); };
+  Builder.prototype.gemBlocked = function (gx, gy, skip) { var g = { x: gx, y: gy }; return this.L.pieces.some(function (q) { return !RS.SHAPES[q.s].sensor && RS.gemHits(q, g); }) || this.L.gems.some(function (o) { return o !== skip && Math.hypot(o.x - gx, o.y - gy) < RS.GEM_R * 2; }); };
   Builder.prototype.gemAt = function (x, y) { var r = null; this.L.gems.forEach(function (g) { if (Math.hypot(g.x - x, g.y - y) < 0.5) r = g; }); return r; };
   // arrastrar una gema
   Builder.prototype.grabGem = function (g, e) {

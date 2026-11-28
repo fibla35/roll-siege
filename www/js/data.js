@@ -20,10 +20,10 @@ var RS = typeof RS !== 'undefined' ? RS : {};
     { id: 'contrapeso', name: 'Contrapeso', w: 1, h: 1, kind: 'box', cat: 'ref', mat: 3, sprite: ['traps', 22], dens: 3.5, cost: 3, desc: 'Muy pesado: equilibra voladizos y aplasta lo que cae.' },
     { id: 'placa', hidden: true, name: 'Placa de hierro', w: 1, h: 0.5, kind: 'box', cat: 'ref', mat: 3, sprite: ['traps', 16], weld: true, cost: 2, desc: 'Placa remachada que se suelda: une dos piezas por encima.' },
     // --- trampas de defensa ---
-    { id: 'muelle', name: 'Muelle', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'spring', mat: 3, sprite: ['traps', 0], anim: [0, 1, 2], cost: 5, desc: 'Devuelve al armadillo por donde vino.' },
-    { id: 'ventilador', name: 'Ventilador', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'fan', mat: 3, sprite: ['traps', 3], anim: [3, 4, 5], cost: 6, desc: 'Sopla hacia el cañón y frena a los armadillos que se acercan.' },
-    { id: 'torreta', name: 'Torreta', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'turret', mat: 3, sprite: ['traps', 9], anim: [9, 10, 11], cost: 8, desc: 'Dispara a los armadillos en vuelo (3 disparos).' },
-    { id: 'escudo', name: 'Escudo burbuja', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'shield', mat: 4, sprite: ['traps', 12], cost: 7, desc: 'Burbuja que frena en seco al primer armadillo que entra.' },
+    { id: 'muelle', name: 'Muelle', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'spring', mat: 3, sprite: ['traps', 0], anim: [0, 1, 2], cost: 5, desc: 'En el suelo rebota al armadillo hacia arriba y atrás. Colgado de una pared (toca en alto junto a ella) lo rebota de lado.' },
+    { id: 'ventilador', name: 'Ventilador', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'fan', faceRight: true, mat: 3, sprite: ['traps', 3], anim: [3, 4, 5], cost: 6, desc: 'Sopla hacia el cañón y frena a los armadillos que se acercan. Va sobre el suelo o encima de una pieza.' },
+    { id: 'torreta', name: 'Torreta', w: 1, h: 1, kind: 'box', cat: 'trap', trap: 'turret', faceRight: true, mat: 3, sprite: ['traps', 9], anim: [9, 10, 11], cost: 8, desc: 'Dispara a los armadillos en vuelo (3 disparos). Va sobre el suelo o encima de una pieza.' },
+    { id: 'escudo', name: 'Escudo burbuja', w: 2, h: 2, kind: 'circle', r: 1, cat: 'trap', trap: 'shield', mat: 4, sprite: ['traps', 12], static: true, sensor: true, cost: 7, desc: 'Burbuja de 2×2: ponla sobre una gema. El primer armadillo que entra rebota hacia fuera y la burbuja se rompe.' },
     { id: 'gemafalsa', name: 'Gema trampa', w: 1, h: 1, kind: 'circle', r: 0.42, cat: 'trap', trap: 'decoy', mat: 4, sprite: ['traps', 14], cost: 5, desc: 'Parece una gema… y explota lanzando lejos al armadillo.' },
     // --- explosivos (solo en la campaña, ayudan al atacante) ---
     { id: 'barril', name: 'Barril explosivo', w: 1, h: 1, kind: 'box', cat: 'boom', mat: 0, sprite: ['items', 0], explosive: 1, cost: 2 },

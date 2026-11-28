@@ -1,6 +1,15 @@
 # Diccionario español → inglés de Roll Siege. Frases completas y trozos: el traductor en tiempo real
 # sustituye primero las coincidencias más largas, respetando los límites de palabra.
 EN = {
+'Sopla hacia el cañón y frena a los armadillos que se acercan. Va sobre el suelo o encima de una pieza.': 'Blows towards the cannon and slows incoming armadillos. Goes on the ground or on top of a piece.',
+'Dispara a los armadillos en vuelo (3 disparos). Va sobre el suelo o encima de una pieza.': 'Shoots armadillos in flight (3 shots). Goes on the ground or on top of a piece.',
+'Burbuja de 2×2: ponla sobre una gema. El primer armadillo que entra rebota hacia fuera y la burbuja se rompe.': '2×2 bubble: put it over a gem. The first armadillo that enters bounces out and the bubble pops.',
+'En el suelo sopla hacia el cañón y frena a los armadillos. Colgado de una pared (toca en alto junto a ella) sopla hacia arriba.': 'On the ground it blows towards the cannon and slows armadillos. Hung on a wall (tap high next to it) it blows upward.',
+'En el suelo rebota al armadillo hacia arriba y atrás. Colgado de una pared (toca en alto junto a ella) lo rebota de lado.': 'On the ground it bounces the armadillo up and back. Hung on a wall (tap high next to it) it bounces it sideways.',
+'Dispara a los armadillos en vuelo (3 disparos). Va en el suelo o colgada de una pared.': 'Shoots armadillos in flight (3 shots). Goes on the ground or hung on a wall.',
+'Sopla hacia el cañón y frena a los armadillos. Gíralo (⟳) para que sople hacia arriba contra los morteros. Se puede colgar en una pared.': 'Blows towards the cannon and slows armadillos. Rotate it (⟳) to blow upward against mortars. Can hang on a wall.',
+'Devuelve al armadillo por donde vino. Toca junto a una pared en alto para colgarlo.': 'Sends the armadillo back the way it came. Tap high next to a wall to hang it.',
+'Dispara a los armadillos en vuelo (3 disparos), en cualquier dirección. Se puede colgar en una pared.': 'Shoots armadillos in flight (3 shots), in any direction. Can hang on a wall.',
 'Mano: sin pieza, mueve piezas y gemas': 'Hand: no piece, move pieces and gems',
 '✋ Sin pieza: arrastra piezas y gemas para moverlas, o el fondo para mover la vista. Elige una pieza para construir (tócala otra vez para soltarla).': '✋ No piece: drag pieces and gems to move them, or the background to pan. Pick a piece to build (tap it again to put it down).',
 'Toca en una esquina (de suelo o de techo) y se coloca sola, soldada.': 'Tap a corner (floor or ceiling) and it places itself, welded.',

@@ -39,7 +39,7 @@
       var bw = s.w * sc, bh = s.h * sc, w = bw, h = w / a;
       if (h > bh) { h = bh; w = h * a; }
       if (s.kind === 'brace' || s.kind === 'poly') { w = bw; h = bh; }
-      ctx.save(); ctx.translate(x, y); ctx.rotate(ang); if (p.flip) ctx.scale(-1, 1);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang); if (s.faceRight ? !p.flip : p.flip) ctx.scale(-1, 1); // ventilador y torreta: dibujados mirando a la derecha, actúan hacia el cañón
       if (alpha != null) ctx.globalAlpha = alpha;
       if (broken) ctx.filter = 'brightness(0.75) saturate(0.7)';
       RS.drawSp(ctx, sh, idx, 0, bh / 2 - h / 2, w, h);

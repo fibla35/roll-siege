@@ -496,7 +496,7 @@
     tl.appendChild(sep());
     function ib(ico, title, sel, fn) { var b = tb(ico, sel, fn, 'ico'); b.title = title; tl.appendChild(b); }
     ib('↶', 'Deshacer', false, function () { B.undo(); updB(); });
-    ib('⟳', 'Girar', false, function () { B.rot = (B.rot + 1) % 4; if (B.carry) { var cs = RS.SHAPES[B.carry.s]; if (cs.kind !== 'circle') B.carry.rot = cs.sprite ? (cs.kind === 'brace' ? 0 : (B.carry.rot === 4 ? 0 : 4)) : ((B.carry.rot || 0) + 1) % (cs.kind === 'box' ? 4 : 2); } B.autoOrient = false; buildUI(); });
+    ib('⟳', 'Girar', false, function () { B.rot = (B.rot + 1) % 4; B.autoOrient = false; if (B.carry) { var cp = B.curPiece(), cs = RS.SHAPES[B.carry.s]; if (cs.sprite && !cs.trap) { var o = B.rot; B.carry.rot = cs.kind === 'brace' ? 0 : (o >= 2 ? 4 : 0); B.carry.flip = o % 2 === 1; } else if (cs.trap === 'fan') B.carry.rot = B.carry.rot ? 0 : 1; else if (cs.kind !== 'circle' && !cs.trap) B.carry.rot = ((B.carry.rot || 0) + 1) % (cs.kind === 'box' ? 4 : 2); } buildUI(); });
     ib('⇋', 'Voltear', B.flip, function () { B.flip = !B.flip; B.autoOrient = false; if (B.carry) B.carry.flip = !B.carry.flip; buildUI(); });
     ib('🌊', 'Fondo de mar (limpio)', B.sea && !B.blue, function () { B.sea = !B.sea; if (B.sea) B.blue = false; S.buildSea = B.sea; S.blueprint = B.blue; persist(); buildUI(); });
     ib('📐', 'Modo plano (pantalla azul)', B.blue, function () { B.blue = !B.blue; S.blueprint = B.blue; persist(); buildUI(); });
