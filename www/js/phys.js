@@ -6,6 +6,14 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
   var V = pl.Vec2;
 
   // giros: 0 = normal, 1 = vertical (90°), 2 = diagonal subiendo (45°), 3 = diagonal bajando (-45°)
+  RS.GEM_R = 0.27; // radio de la gema (cabe en el hueco de un arco)
+  // partes sólidas de una pieza (el arco es hueco por debajo) como cajas en coordenadas del mundo
+  RS.pieceParts = function (p) {
+    var s = RS.SHAPES[p.s];
+    if (s.kind === 'arch' && !p.rot) return [[p.x - 1, p.y - 0.5, p.x - 0.55, p.y + 0.1], [p.x + 0.55, p.y - 0.5, p.x + 1, p.y + 0.1], [p.x - 1, p.y + 0.1, p.x + 1, p.y + 0.5]];
+    var a = RS.pieceAABB(p); return [[a.x0, a.y0, a.x1, a.y1]];
+  };
+  RS.gemHits = function (p, g, r) { r = r == null ? RS.GEM_R - 0.03 : r; return RS.pieceParts(p).some(function (b) { var dx = Math.max(b[0] - g.x, 0, g.x - b[2]), dy = Math.max(b[1] - g.y, 0, g.y - b[3]); return dx * dx + dy * dy < r * r; }); };
   RS.ANG = [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4, Math.PI]; // 4 = boca abajo (triángulos en esquinas altas)
   RS.rotAng = function (p) { return RS.ANG[p.rot || 0] || 0; };
   function pieceSize(p) {
@@ -87,7 +95,7 @@ var planck = typeof planck !== 'undefined' ? planck : require('./planck.min.js')
 
   Phys.prototype.addGem = function (g, i) {
     var b = this.world.createBody({ type: 'dynamic', position: V(g.x, g.y) });
-    b.createFixture(pl.Circle(0.33), { density: 0.7, friction: 0.5, restitution: 0.2 });
+    b.createFixture(pl.Circle(RS.GEM_R), { density: 0.7, friction: 0.5, restitution: 0.2 });
     var ud = { gem: true, idx: i, c: g.c || 0, x0: g.x, y0: g.y, freed: false, body: b };
     b.setUserData(ud); this.gems.push(ud);
   };

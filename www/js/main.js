@@ -344,7 +344,7 @@
 
   function onEnd(r) {
     var c = ctxGame, txt = ''; $('hint').style.opacity = 0; $('armtip').classList.remove('show');
-    RS.Audio.play(r.win ? 'RSM14_victoria' : 'RSM14_derrota');
+    RS.Audio.play(r.win ? 'RSM14_victoria' : 'RSM14_derrota', { once: true });
     $('r_title').src = 'img/ui/' + (r.win ? 't_victoria' : 't_derrota') + '.webp';
     $('r_title_txt').textContent = r.win ? 'VICTORY!' : 'DEFEAT'; $('r_title_txt').className = 'rtitle_txt' + (r.win ? '' : ' lose');
     var st = ''; for (var i = 0; i < 3; i++) st += '<img src="img/ui/star' + (i < r.stars ? 1 : 0) + '.webp">';
@@ -467,7 +467,7 @@
     var three = Math.round((endX - OFF) * 120 + gems.length * 1000);
     return { pieces: pieces, gems: gems, arms: [0, 1, 3, 2, 4], end: endX, stars: [1, three * 0.55, three * 0.85], deco: (L.deco || []).map(function (d) { return Object.assign({}, d, { x: d.x + OFF }); }), sign: { x: OFF - 2.1, y: 0, name: S.name } };
   }
-  var TOOLS = [['place', '🧱', 'Poner'], ['tpl', '🏠', 'Plantillas'], ['pick', '📋', 'Copiar'], ['erase', '🗑', 'Quitar'], ['weld', '🔩', 'Soldar'], ['swap', '♻', 'Cambiar material'], ['paint', '🎨', 'Pintar'], ['gem', '💎', 'Gema'], ['deco', '🏮', 'Adorno'], ['pan', '👁', 'Mover la vista']];
+  var TOOLS = [['hand', '✋', 'Mano: sin pieza, mueve piezas y gemas'], ['place', '🧱', 'Poner'], ['tpl', '🏠', 'Plantillas'], ['pick', '📋', 'Copiar'], ['erase', '🗑', 'Quitar'], ['weld', '🔩', 'Soldar'], ['swap', '♻', 'Cambiar material'], ['paint', '🎨', 'Pintar'], ['gem', '💎', 'Gema'], ['deco', '🏮', 'Adorno'], ['pan', '👁', 'Mover la vista']];
   var ROTN = ['normal', 'vertical', 'diagonal ↗', 'diagonal ↘'];
   var CATS = [['est', 'Estructura'], ['ref', 'Refuerzos'], ['trap', 'Trampas']];
   function pieceIcon(p, bw, bh) {
@@ -503,7 +503,8 @@
     ib('✏', 'Nombre de la fortaleza', false, function () { ask('Nombre de tu fortaleza', function (v) { v = (v || '').trim(); if (v) { S.name = v.slice(0, 20); persist(); if (B.L.sign) B.L.sign.name = S.name; toast('Nombre: ' + S.name); } }, S.name); });
     ib('✖', 'Vaciar todo', false, function () { ask('¿Borrar toda la fortaleza?', function () { B.snap(); B.L.pieces = []; B.L.gems = []; B.L.deco = []; B.L.sign = null; B.changed(); }); });
     var info = '';
-    if (B.tool === 'place') {
+    var palMode = B.tool === 'place' || B.tool === 'hand';
+    if (palMode) {
       CATS.forEach(function (c) { pal.appendChild(tb(c[1], B.cat === c[0], function () { B.cat = c[0]; var first = RS.SHAPES.findIndex(function (sh) { return (sh.cat || 'est') === c[0]; }); if ((RS.SHAPES[B.shape].cat || 'est') !== c[0]) B.shape = first; buildUI(); }, 'cat')); });
       pal.appendChild(sep());
       var order = RS.SHAPES.map(function (sh, i) { return i; }), ti = RS.SHAPE_IDX.tejado;
@@ -511,7 +512,7 @@
       order.forEach(function (i) { var sh = RS.SHAPES[i];
         if ((sh.cat || 'est') !== B.cat) return;
         var p = { s: i, m: sh.mat != null ? sh.mat : B.mat, rot: sh.sprite || sh.kind === 'circle' ? 0 : B.rot, flip: B.flip };
-        var b = tb(pieceIcon(p, 72, 48), B.shape === i, function () { B.shape = i; B.autoOrient = true; buildUI(); });
+        var b = tb(pieceIcon(p, 72, 48), B.tool === 'place' && B.shape === i, function () { if (B.tool === 'place' && B.shape === i) B.setTool('hand'); else { B.shape = i; B.autoOrient = true; B.setTool('place'); } buildUI(); });
         b.title = sh.name; pal.appendChild(b);
         // arrastrar la pieza hacia arriba la saca de la paleta y se suelta donde quieras
         b.addEventListener('pointerdown', function (ev) {
@@ -528,6 +529,7 @@
       if (B.cat === 'est') { pal.appendChild(sep()); matButtons(pal, B); }
       info = cur.name + (cur.desc ? ': ' + cur.desc : '') + ' · Coste ' + RS.pieceCost(B.curPiece()) + (cur.trap ? ' · Trampas ' + B.trapCount() + '/' + RS.MAX_TRAPS : '');
       if (!cur.desc) info += ' · Arrástrala desde aquí o toca donde ponerla · mantén el dedo sobre una pieza para moverla';
+      if (B.tool === 'hand') info = '✋ Sin pieza: arrastra piezas y gemas para moverlas, o el fondo para mover la vista. Elige una pieza para construir (tócala otra vez para soltarla).';
     } else if (B.tool === 'tpl') {
       RS.TEMPLATES.forEach(function (T, i) { var b = tb(tplIcon(T, B.mat), B.tpl === i, function () { B.tpl = i; buildUI(); }); b.title = T.name; pal.appendChild(b); });
       pal.appendChild(sep()); matButtons(pal, B);

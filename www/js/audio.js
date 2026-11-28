@@ -24,13 +24,14 @@
     s.buffer = A.buf[n]; g.gain.value = (v == null ? 1 : v) * A.vol.sfx; s.playbackRate.value = 0.94 + Math.random() * 0.12;
     s.connect(g); g.connect(A.ctx.destination); s.start();
   };
-  A.play = function (code) {
+  A.play = function (code, opt) {
     var st = STYLE[(RS.save && RS.save.musicStyle) || 'mezcla'];
     if (st && st[code]) code = st[code];
-    if (A.cur === code && A.music) { A.music.volume = A.vol.music; if (A.music.paused && A.vol.music > 0) A.music.play().catch(function () {}); return; }
+    if (A.cur === code && A.music && !(opt && opt.once)) { A.music.volume = A.vol.music; if (A.music.paused && A.vol.music > 0) A.music.play().catch(function () {}); return; }
     var old = A.music; A.cur = code;
     if (old) { var fo = setInterval(function () { old.volume = Math.max(0, old.volume - 0.08); if (old.volume <= 0.01) { old.pause(); clearInterval(fo); } }, 50); }
-    var m = new Audio('audio/' + code + '.ogg'); m.loop = true; m.volume = 0; A.music = m;
+    var m = new Audio('audio/' + code + '.ogg'); m.loop = !(opt && opt.once); m.volume = 0; A.music = m;
+    if (opt && opt.once) m.onended = function () { if (A.music === m) { A.music = null; A.cur = null; } }; // sintonía de una vez: luego silencio hasta la siguiente música
     if (A.vol.music > 0) m.play().catch(function () {});
     var fi = setInterval(function () { m.volume = Math.min(A.vol.music, m.volume + 0.05); if (m.volume >= A.vol.music - 0.01) clearInterval(fi); }, 60);
   };

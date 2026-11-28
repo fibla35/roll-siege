@@ -629,7 +629,7 @@
       if (g.freed) return; var p = g.body.getPosition(), pulse = 1 + Math.sin(self.t * 4 + g.idx) * 0.05;
       ctx.save(); ctx.globalAlpha = 0.35 + 0.2 * Math.sin(self.t * 3 + g.idx); ctx.fillStyle = '#fff6a0';
       ctx.beginPath(); ctx.arc(self.sx(p.x), self.sy(p.y), 0.55 * s, 0, TAU); ctx.fill(); ctx.restore();
-      RS.drawSp(ctx, 'items', 6 + g.c, self.sx(p.x), self.sy(p.y), 0.8 * s * pulse, 0.8 * s * pulse, -g.body.getAngle());
+      RS.drawSp(ctx, 'items', 6 + g.c, self.sx(p.x), self.sy(p.y), 0.66 * s * pulse, 0.66 * s * pulse, -g.body.getAngle());
     });
     // mapaches
     this.phys.racs.forEach(function (r) { if (r.gone) return; var q = r.body.getPosition(); RS.drawRac(ctx, r, self.sx(q.x), self.sy(q.y), -r.body.getAngle(), s, self.t); });

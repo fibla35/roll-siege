@@ -13,7 +13,7 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     return m;
   };
   Builder.prototype.add = function (shape, x, y, m, rot, flip) { this.pieces.push({ s: RS.SHAPE_IDX[shape], m: m, x: x, y: y, rot: rot || 0, flip: !!flip }); };
-  Builder.prototype.gem = function (x, y) { this.gems.push({ x: x, y: y + 0.33, c: this.gems.length % 6 }); };
+  Builder.prototype.gem = function (x, y) { this.gems.push({ x: x, y: y + RS.GEM_R, c: this.gems.length % 6 }); };
 
   // torre: pilares (bloque vertical) + forjado (tablón), varios pisos
   Builder.prototype.tower = function (x0, floors, y) {
@@ -126,7 +126,7 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     }
     var used = 0;
     spots.forEach(function (g, k) {
-      var fy = g.y - 0.33, sp = spaceAbove(g.x, fy);
+      var fy = g.y - RS.GEM_R, sp = spaceAbove(g.x, fy);
       if (used < nRac) {
         var fits = pool.filter(function (i) { var r = RS.RACS[i]; return r.h < sp.h - 0.06 && r.w < sp.w - 0.04; });
         if (!fits.length) return;
@@ -141,7 +141,7 @@ var RS = typeof RS !== 'undefined' ? RS : require('./data.js');
     });
     B.gems = B.gems.filter(function (g) { return !g.used; });
     if (boss) racs.push({ x: x + 0.2, y: 0, t: 0, boss: true, w: w, name: RS.BOSSES[RS.bossIdx(w)].name });
-    if (!racs.length && B.gems.length) { var g0 = B.gems.shift(); racs.push({ x: g0.x, y: g0.y - 0.33, t: 0 }); }
+    if (!racs.length && B.gems.length) { var g0 = B.gems.shift(); racs.push({ x: g0.x, y: g0.y - RS.GEM_R, t: 0 }); }
     // demasiadas gemas: como mucho 2 de premio (3 en el jefe)
     var maxG = boss ? 3 : 2;
     while (B.gems.length > maxG) B.gems.splice(Math.floor(R() * B.gems.length), 1);

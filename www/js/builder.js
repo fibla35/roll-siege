@@ -83,8 +83,10 @@
         self.multi = false; self.moved = 0; self.panStart = { cx: self.cx, cy: self.cy }; self.dragE = null;
         // dedo sobre una pieza ya puesta: al moverlo o al mantenerlo 0,35 s, la coges y la arrastras
         var wx = self.wx(self.ptrs[e.pointerId].x), wy = self.wy(self.ptrs[e.pointerId].y), hit = self.sim ? null : self.pieceAt(wx, wy);
-        self.downHit = (self.tool === 'place' || self.tool === 'move') && !self.carry && hit ? hit : null;
-        clearTimeout(self.holdT); if (self.downHit) self.holdT = setTimeout(function () { if (self.downHit && (self.moved || 0) < 14 * self.dpr) self.grab(e); }, 350);
+        var canDrag = (self.tool === 'place' || self.tool === 'move' || self.tool === 'hand' || self.tool === 'gem') && !self.carry;
+        self.downGem = canDrag && !self.sim ? self.gemAt(wx, wy) : null;
+        self.downHit = canDrag && !self.downGem && hit && self.tool !== 'gem' ? hit : null;
+        clearTimeout(self.holdT); if (self.downHit || self.downGem) self.holdT = setTimeout(function () { if ((self.moved || 0) < 14 * self.dpr) { if (self.downGem) self.grabGem(self.downGem, e); else if (self.downHit) self.grab(e); } }, 350);
         self.move(e);
       }
     };
@@ -97,7 +99,9 @@
         var n = self.pinchInfo(), o = self.pinch;
         self.zoom(n.d / o.d, n.x, n.y);
         self.cx -= (n.x - o.x) / self.s; self.cy += (n.y - o.y) / self.s; self.clampView(); self.pinch = n;
-      } else if (self.tool === 'pan') {
+      } else if (self.carryGem) { self.moveGem(e);
+      } else if (self.downGem && self.moved > 14 * self.dpr) { self.grabGem(self.downGem, e);
+      } else if (self.tool === 'pan' || (self.tool === 'hand' && !self.downHit && !self.drag)) {
         self.cx = self.panStart.cx - (P.x - P.x0) / self.s; self.cy = self.panStart.cy + (P.y - P.y0) / self.s; self.clampView();
       } else {
         if (self.downHit && !self.drag && self.moved > 14 * self.dpr) self.grab(e);
@@ -105,10 +109,12 @@
       }
     };
     this._u = function (e) {
+      if (e.type === 'pointercancel' && self.carryGem) { self.drag = false; self.L.gems.push(self.carryGem); self.hist.pop(); self.carryGem = null; self.gemGhost = null; self.changed(); }
       if (e.type === 'pointercancel' && self.drag) { self.drag = false; if (self.carry) { self.L.pieces.push(self.carry.orig); self.hist.pop(); self.carry = null; self.ghost = null; self.changed(); } }
       if (self.ext != null && e.pointerId === self.ext) { if (e.type === 'pointercancel') { self.ext = null; self.ghost = null; } else self.extDrop(e); return; }
       if (!self.ptrs[e.pointerId]) return;
-      clearTimeout(self.holdT); self.downHit = null;
+      clearTimeout(self.holdT); self.downHit = null; self.downGem = null;
+      if (self.drag && self.carryGem) { delete self.ptrs[e.pointerId]; self.dropGem(); return; }
       if (self.drag) { delete self.ptrs[e.pointerId]; self.dropCarry(e); return; }
       delete self.ptrs[e.pointerId];
       if (self.multi) { if (!Object.keys(self.ptrs).length) self.multi = false; return; }
@@ -180,7 +186,7 @@
     if (s.ground && a.y0 > 0.01) return 'Esta pieza solo va en el suelo';
     var oa = RS.pieceOBB(p), diagA = p.rot === 2 || p.rot === 3;
     var hit = this.L.pieces.some(function (q) { var b = RS.pieceAABB(q); var box = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.02 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.02; if (!box) return false; if (!diagA && q.rot !== 2 && q.rot !== 3) return true; return RS.obbOverlap(oa, RS.pieceOBB(q)); });
-    if (hit || this.L.gems.some(function (g) { return g.x > a.x0 && g.x < a.x1 && g.y > a.y0 && g.y < a.y1; })) return 'No cabe ahí';
+    if (hit || this.L.gems.some(function (g) { return RS.gemHits(p, g); })) return 'No cabe ahí';
     if (this.cost() + (extraCost || 0) > this.budget) return 'Sin puntos de construcción';
     return null;
   };
@@ -198,6 +204,29 @@
     this.L.pieces = save;
     if (!r && this.cost() + cost > this.budget) r = 'Sin puntos de construcción';
     return r;
+  };
+  // la gema cae hasta lo que tenga debajo (bajo un arco, al suelo del hueco)
+  Builder.prototype.gemY = function (gx, y) {
+    var floor = 0, R = RS.GEM_R;
+    this.L.pieces.forEach(function (q) { RS.pieceParts(q).forEach(function (b) { if (Math.min(gx + R * 0.8, b[2]) - Math.max(gx - R * 0.8, b[0]) > 0.02 && b[3] <= y + 0.35 && b[3] > floor) floor = b[3]; }); });
+    return floor + R;
+  };
+  Builder.prototype.gemBlocked = function (gx, gy, skip) { var g = { x: gx, y: gy }; return this.L.pieces.some(function (q) { return RS.gemHits(q, g); }) || this.L.gems.some(function (o) { return o !== skip && Math.hypot(o.x - gx, o.y - gy) < RS.GEM_R * 2; }); };
+  Builder.prototype.gemAt = function (x, y) { var r = null; this.L.gems.forEach(function (g) { if (Math.hypot(g.x - x, g.y - y) < 0.5) r = g; }); return r; };
+  // arrastrar una gema
+  Builder.prototype.grabGem = function (g, e) {
+    this.snap(); this.L.gems.splice(this.L.gems.indexOf(g), 1); this.carryGem = g; this.drag = true; this.downGem = null;
+    RS.Audio.sfx('gem', 0.4); if (RS.vib) RS.vib(25); this.moveGem(e);
+  };
+  Builder.prototype.moveGem = function (e) {
+    var x = this.wx((e.clientX - RS.stage.x) * this.dpr), y = this.wy((e.clientY - RS.stage.y) * this.dpr - this.lift(e)), gx = Math.round(x * 2) / 2, gy = this.gemY(gx, y);
+    this.gemGhost = { x: gx, y: gy, bad: gx < 0.3 || gx > GW - 0.3 || this.gemBlocked(gx, gy) }; this.ghost = null;
+  };
+  Builder.prototype.dropGem = function () {
+    var gg = this.gemGhost, g = this.carryGem; this.drag = false; this.carryGem = null; this.gemGhost = null;
+    if (!gg || gg.bad) { this.L.gems.push(g); this.hist.pop(); this.toast('Ponla en un hueco, no dentro de una pieza'); }
+    else { g.x = gg.x; g.y = gg.y; this.L.gems.push(g); RS.Audio.sfx('gem', 0.5); }
+    this.changed();
   };
   Builder.prototype.pieceAt = function (x, y) {
     for (var i = this.L.pieces.length - 1; i >= 0; i--) { var a = RS.pieceAABB(this.L.pieces[i]); if (x >= a.x0 && x <= a.x1 && y >= a.y0 && y <= a.y1) return this.L.pieces[i]; }
@@ -230,7 +259,9 @@
   Builder.prototype.move = function (e) {
     if (this.sim) return;
     var x = this.wx((e.clientX - RS.stage.x) * this.dpr), y = this.wy((e.clientY - RS.stage.y) * this.dpr - this.lift(e));
-    if (this.tool === 'place') { var p = this.snapPiece(this.curPiece(), x, y); p.bad = this.why(p, RS.pieceCost(p)); this.ghost = { p: p }; }
+    if (this.carry) { var q0 = this.snapPiece(this.carryCopy(), x, y); q0.bad = this.why(q0, RS.pieceCost(q0)); this.ghost = { p: q0 }; }
+    else if (this.tool === 'hand') this.ghost = null;
+    else if (this.tool === 'place') { var p = this.snapPiece(this.curPiece(), x, y); p.bad = this.why(p, RS.pieceCost(p)); this.ghost = { p: p }; }
     else if (this.tool === 'tpl') { var ps = this.tplPieces(x, y); this.ghost = { ps: ps, bad: this.tplWhy(ps) }; }
     else if (this.carry) { var q = this.snapPiece(this.carryCopy(), x, y); q.bad = this.why(q, RS.pieceCost(q)); this.ghost = { p: q }; }
     else this.ghost = { x: x, y: y };
@@ -248,7 +279,7 @@
     this.tool = t; this.ghost = null;
   };
   Builder.prototype.tap = function (e) {
-    if (this.sim) return;
+    if (this.sim || this.tool === 'hand') return;
     var x = this.wx((e.clientX - RS.stage.x) * this.dpr), y = this.wy((e.clientY - RS.stage.y) * this.dpr), self = this;
     if (y < -1.5 || x < -2 || x > GW + 2 || (e.clientY - RS.stage.y) * this.dpr > this.H - this.bot + 4 || (e.clientY - RS.stage.y) * this.dpr < this.top * 0.8) return;
     var hit = this.pieceAt(x, y), err;
@@ -296,8 +327,8 @@
       this.snap(); hit.m = this.mat; RS.Audio.sfx('place', 0.5); this.changed();
     } else if (this.tool === 'gem') {
       if (this.L.gems.length >= 3) return this.toast('Máximo 3 gemas');
-      var gx = Math.round(x * 2) / 2, gy = this.dropY(gx - 0.3, gx + 0.3, y, 0.68);
-      if (this.pieceAt(gx, gy)) return this.toast('Ponla en un hueco, no dentro de una pieza');
+      var gx = Math.round(x * 2) / 2, gy = this.gemY(gx, y);
+      if (this.gemBlocked(gx, gy)) return this.toast('Ponla en un hueco, no dentro de una pieza');
       this.snap(); this.L.gems.push({ x: gx, y: gy, c: this.L.gems.length }); RS.Audio.sfx('gem', 0.5); this.changed();
     } else if (this.tool === 'deco') {
       this.snap(); this.L.deco.push({ d: this.decoIdx, x: Math.round(x * 2) / 2, y: Math.max(0, Math.round(y * 2) / 2 - 0.5), w: 1.6 }); RS.Audio.sfx('place', 0.5); this.changed(false);
@@ -403,7 +434,7 @@
     // piezas
     if (this.sim) {
       this.sim.P.blocks.forEach(function (u) { if (u.dead) return; var p = u.body.getPosition(); RS.drawBlock(ctx, self.style, u.p, false, self.sx(p.x), self.sy(p.y), -u.body.getAngle(), s, null, u.p.tint); });
-      this.sim.P.gems.forEach(function (g) { if (g.freed) return; var p = g.body.getPosition(); RS.drawSp(ctx, 'items', 6 + g.c, self.sx(p.x), self.sy(p.y), 0.75 * s, 0.75 * s); });
+      this.sim.P.gems.forEach(function (g) { if (g.freed) return; var p = g.body.getPosition(); RS.drawSp(ctx, 'items', 6 + g.c, self.sx(p.x), self.sy(p.y), 0.62 * s, 0.62 * s); });
     } else {
       this.L.pieces.forEach(function (p, i) {
         var sh = RS.SHAPES[p.s];
@@ -413,7 +444,8 @@
         if (p.weld && !sh.weld) { ctx.fillStyle = '#c9cfd6'; ctx.strokeStyle = '#333'; var z = RS.pieceSize(p); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (c) { ctx.beginPath(); ctx.arc(self.sx(p.x + c[0] * (z.w / 2 - 0.15)), self.sy(p.y + c[1] * (z.h / 2 - 0.12)), 0.08 * s, 0, 7); ctx.fill(); ctx.stroke(); }); }
         if (self.marks && self.marks[i]) { var a = RS.pieceAABB(p); ctx.fillStyle = self.marks[i] === 2 ? 'rgba(255,40,40,0.45)' : 'rgba(255,210,40,0.4)'; ctx.fillRect(self.sx(a.x0), self.sy(a.y1), (a.x1 - a.x0) * s, (a.y1 - a.y0) * s); }
       });
-      this.L.gems.forEach(function (g) { RS.drawSp(ctx, 'items', 6 + g.c, self.sx(g.x), self.sy(g.y), 0.75 * s, 0.75 * s); });
+      this.L.gems.forEach(function (g) { RS.drawSp(ctx, 'items', 6 + g.c, self.sx(g.x), self.sy(g.y), 0.62 * s, 0.62 * s); });
+      if (this.gemGhost) { ctx.save(); ctx.globalAlpha = 0.75; if (this.gemGhost.bad) ctx.filter = 'grayscale(1) brightness(0.6)'; RS.drawSp(ctx, 'items', 6 + this.carryGem.c, self.sx(this.gemGhost.x), self.sy(this.gemGhost.y), 0.7 * s, 0.7 * s); ctx.restore(); }
     }
     // cartel con el nombre
     RS.drawSign(ctx, this.clan, this.o.getName ? this.o.getName() : (this.o.name || 'Mi fortaleza'), this.sx(-2.1), this.sy(0), s, this.dpr);

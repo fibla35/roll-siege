@@ -1,6 +1,8 @@
 # Diccionario español → inglés de Roll Siege. Frases completas y trozos: el traductor en tiempo real
 # sustituye primero las coincidencias más largas, respetando los límites de palabra.
 EN = {
+'Mano: sin pieza, mueve piezas y gemas': 'Hand: no piece, move pieces and gems',
+'✋ Sin pieza: arrastra piezas y gemas para moverlas, o el fondo para mover la vista. Elige una pieza para construir (tócala otra vez para soltarla).': '✋ No piece: drag pieces and gems to move them, or the background to pan. Pick a piece to build (tap it again to put it down).',
 'Toca en una esquina (de suelo o de techo) y se coloca sola, soldada.': 'Tap a corner (floor or ceiling) and it places itself, welded.',
 'Toca junto a una pared: apuntala desde el suelo, o bajo un techo como escuadra grande.': 'Tap next to a wall: braces it from the floor, or under a roof as a big bracket.',
 'Como el de madera, pero mucho más resistente.': 'Like the wooden one, but much tougher.',
